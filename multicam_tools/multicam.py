@@ -61,6 +61,7 @@ class MulticamSource(object):
                 is_active = True
             elif is_active:
                 d[frame] = False
+                is_active = False
         return d
     def build_keyframes(self):
         for frame, is_active in self.keyframe_data.items():
