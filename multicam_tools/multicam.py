@@ -78,6 +78,16 @@ class MulticamSource(object):
                 d[frame] = False
                 is_active = False
         return d
+    def insert_keyframe(self, frame, value, **kwargs):
+        if self.fcurve is None:
+            self.strip.keyframe_insert('blend_alpha', frame=frame)
+            kf = self.get_keyframe(frame)
+            kf.co[1] = value
+        else:
+            kf = self.fcurve.keyframe_points.insert(frame, value)
+        for key, val in kwargs.items():
+            setattr(kf, key, val)
+        return kf
     def get_keyframe(self, frame):
         for kf in self.fcurve.keyframe_points.values():
             if kf.co[0] == frame:
@@ -88,10 +98,7 @@ class MulticamSource(object):
                 value = 1.
             else:
                 value = 0.
-            self.strip.keyframe_insert('blend_alpha', frame=frame)
-            kf = self.get_keyframe(frame)
-            kf.co[1] = value
-            kf.interpolation = 'CONSTANT'
+            self.insert_keyframe(frame, value, interpolation='CONSTANT')
     
 def test():
     mc = MultiCam(bpy.context.selected_sequences[0])
