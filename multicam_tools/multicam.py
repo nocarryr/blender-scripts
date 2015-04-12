@@ -47,6 +47,8 @@ class BlendObj(object):
     def get_fcurve(self):
         path = self.blend_obj.path_from_id()
         action = self.context.scene.animation_data.action
+        if action is None:
+            return None
         prop = self.fcurve_property
         for fc in action.fcurves.values():
             if path not in fc.data_path:
@@ -62,7 +64,6 @@ class BlendObj(object):
         self._fcurve = None
     def insert_keyframe(self, frame, value, **kwargs):
         prop = self.fcurve_property
-        print('prop: ', prop)
         if self.fcurve is None:
             self.blend_obj.keyframe_insert(prop, frame=frame)
             kf = self.get_keyframe(frame)
@@ -146,8 +147,10 @@ class MultiCamExport(bpy.types.Operator, ExportHelper):
         data = {}
         for frame, value in mc.iter_keyframes():
             data[frame] = value
+        keys = sorted(data.keys())
+        out_data = [(key, data[key]) for key in keys]
         with open(self.filepath, 'w') as f:
-            f.write(json.dumps(data, indent=2))
+            f.write(json.dumps(out_data, indent=2))
         return {'FINISHED'}
         
 class MultiCamImport(bpy.types.Operator, ImportHelper):
@@ -160,7 +163,7 @@ class MultiCamImport(bpy.types.Operator, ImportHelper):
         mc = MultiCam(blend_obj=context.scene.sequence_editor.active_strip, 
                       context=context)
         mc.remove_fcurve()
-        for frame, value in data.items():
+        for frame, value in data:
             mc.insert_keyframe(frame, value, interpolation='CONSTANT')
         return {'FINISHED'}
     
