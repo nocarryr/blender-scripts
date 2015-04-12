@@ -18,6 +18,7 @@
     <Source>__init__.py</Source>
     <Source>multicam_tools/__init__.py</Source>
     <Source>multicam_tools/multicam.py</Source>
+    <Source>multicam_tools/multicam_ui.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

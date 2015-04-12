@@ -1,9 +1,14 @@
 import bpy
+from bpy_extras.io_utils import ExportHelper, ImportHelper
+
+import json
 
 class BlendObj(object):
     def __init__(self, **kwargs):
         self.context = kwargs.get('context')
         self.blend_obj = kwargs.get('blend_obj')
+        if hasattr(self.__class__, 'fcurve_property'):
+            self.fcurve_property = self.__class__.fcurve_property
         if not hasattr(self, 'fcurve_property'):
             self.fcurve_property = kwargs.get('fcurve_property')
     @property
@@ -49,6 +54,28 @@ class BlendObj(object):
             if fc.data_path.split('.')[-1] != prop:
                 continue
             return fc
+    def remove_fcurve(self):
+        if self.fcurve is None:
+            return
+        action = self.context.scene.animation_data.action
+        action.fcurves.remove(self.fcurve)
+        self._fcurve = None
+    def insert_keyframe(self, frame, value, **kwargs):
+        prop = self.fcurve_property
+        print('prop: ', prop)
+        if self.fcurve is None:
+            self.blend_obj.keyframe_insert(prop, frame=frame)
+            kf = self.get_keyframe(frame)
+            kf.co[1] = value
+        else:
+            kf = self.fcurve.keyframe_points.insert(frame, value)
+        for key, val in kwargs.items():
+            setattr(kf, key, val)
+        return kf
+    def get_keyframe(self, frame):
+        for kf in self.fcurve.keyframe_points.values():
+            if kf.co[0] == frame:
+                return kf
     
     
 class MultiCam(BlendObj):
@@ -101,20 +128,6 @@ class MulticamSource(BlendObj):
                 d[frame] = False
                 is_active = False
         return d
-    def insert_keyframe(self, frame, value, **kwargs):
-        if self.fcurve is None:
-            self.blend_obj.keyframe_insert('blend_alpha', frame=frame)
-            kf = self.get_keyframe(frame)
-            kf.co[1] = value
-        else:
-            kf = self.fcurve.keyframe_points.insert(frame, value)
-        for key, val in kwargs.items():
-            setattr(kf, key, val)
-        return kf
-    def get_keyframe(self, frame):
-        for kf in self.fcurve.keyframe_points.values():
-            if kf.co[0] == frame:
-                return kf
     def build_keyframes(self):
         for frame, is_active in self.keyframe_data.items():
             if is_active:
@@ -122,9 +135,39 @@ class MulticamSource(BlendObj):
             else:
                 value = 0.
             self.insert_keyframe(frame, value, interpolation='CONSTANT')
+            
+class MultiCamExport(bpy.types.Operator, ExportHelper):
+    bl_idname = 'multicam_tools.export'
+    bl_label = 'Export Multicam'
+    filename_ext = '.json'
+    def execute(self, context):
+        mc = MultiCam(blend_obj=context.scene.sequence_editor.active_strip, 
+                      context=context)
+        data = {}
+        for frame, value in mc.iter_keyframes():
+            data[frame] = value
+        with open(self.filepath, 'w') as f:
+            f.write(json.dumps(data, indent=2))
+        return {'FINISHED'}
+        
+class MultiCamImport(bpy.types.Operator, ImportHelper):
+    bl_idname = 'multicam_tools.import'
+    bl_label = 'Import Multicam'
+    filename_ext = '.json'
+    def execute(self, context):
+        with open(self.filepath, 'r') as f:
+            data = json.loads(f.read())
+        mc = MultiCam(blend_obj=context.scene.sequence_editor.active_strip, 
+                      context=context)
+        mc.remove_fcurve()
+        for frame, value in data.items():
+            mc.insert_keyframe(frame, value, interpolation='CONSTANT')
+        return {'FINISHED'}
     
-def test():
-    mc = MultiCam(blend_obj=bpy.context.selected_sequences[0])
-    mc.build_cuts()
-    mc.build_strip_keyframes()
-test()
+def _register():
+    bpy.utils.register_class(MultiCamExport)
+    bpy.utils.register_class(MultiCamImport)
+def _unregister():
+    bpy.utils.unregister_class(MultiCamExport)
+    bpy.utils.unregister_class(MultiCamImport)
+
