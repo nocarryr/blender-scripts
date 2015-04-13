@@ -6,6 +6,7 @@ bl_info = {
     "version": (0, 0, 1),
     "blender": (2, 74, 0),
     "description": "", 
+    "category":"Animation", 
     "warning": "",
 }
 
