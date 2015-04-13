@@ -148,9 +148,32 @@ class MulticamSource(BlendObj):
                 value = 0.
             self.insert_keyframe(frame, value, interpolation='CONSTANT')
             
-class MultiCamBakeStrips(bpy.types.Operator):
+class MultiCamFadeToSource(bpy.types.PropertyGroup):
+    #next_source = bpy.props.IntProperty(name='Next Source')
+    #frame_duration = bpy.props.FloatProperty(name='Frame Duration', default=20.)
+    #fade_position = bpy.props.FloatProperty(name='Fade Position', min=0., max=1.)
+    @classmethod
+    def register(cls):
+        bpy.types.MulticamSequence.fade_to_source = bpy.props.PointerProperty(type=cls)
+        cls.next_source = bpy.props.IntProperty(name='Next Source')
+        cls.frame_duration = bpy.props.FloatProperty(name='Frame Duration', default=20.)
+        cls.fade_position = bpy.props.FloatProperty(name='Fade Position', min=0., max=1.)
+    @classmethod
+    def unregister(cls):
+        del bpy.types.MulticamSequence.fade_to_source
+
+#class MultiCamFadeToSource(bpy.types.Operator):
+#    '''Creates a dissolve to the desired source'''
+#    bl_idname = 'multicam_tools.fade_to_source'
+#    bl_label = 'Fade to Source'
+#    frame_start = bpy.props.FloatProperty(name='Start Frame')
+#    frame_end = bpy.props.FloatProperty(name='End Frame')
+#    source_start = bpy.props.IntProperty(name='Start Source')
+#    source_end = bpy.props.IntProperty(name='End Source')
+    
+class SEQUENCER_OT_bake_multicam_strips(bpy.types.Operator):
     '''Bakes the mulicam source into the affected strips using opacity'''
-    bl_idname = 'multicam_tools.bake_strips'
+    bl_idname = 'sequencer.bake_multicam_strips'
     bl_label = 'Bake Multicam Strips'
     def execute(self, context):
         mc = MultiCam(blend_obj=context.scene.sequence_editor.active_strip, 
@@ -158,8 +181,8 @@ class MultiCamBakeStrips(bpy.types.Operator):
         mc.bake_strips()
         return {'FINISHED'}
         
-class MultiCamExport(bpy.types.Operator, ExportHelper):
-    bl_idname = 'multicam_tools.export'
+class SEQUENCER_OT_export_multicam(bpy.types.Operator, ExportHelper):
+    bl_idname = 'sequencer.export_multicam'
     bl_label = 'Export Multicam'
     filename_ext = '.json'
     def execute(self, context):
@@ -174,8 +197,8 @@ class MultiCamExport(bpy.types.Operator, ExportHelper):
             f.write(json.dumps(out_data, indent=2))
         return {'FINISHED'}
         
-class MultiCamImport(bpy.types.Operator, ImportHelper):
-    bl_idname = 'multicam_tools.import'
+class SEQUENCER_OT_import_multicam(bpy.types.Operator, ImportHelper):
+    bl_idname = 'sequencer.import_multicam'
     bl_label = 'Import Multicam'
     filename_ext = '.json'
     def execute(self, context):
@@ -188,12 +211,19 @@ class MultiCamImport(bpy.types.Operator, ImportHelper):
             mc.insert_keyframe(frame, value, interpolation='CONSTANT')
         return {'FINISHED'}
     
-def _register():
-    bpy.utils.register_class(MultiCamBakeStrips)
-    bpy.utils.register_class(MultiCamExport)
-    bpy.utils.register_class(MultiCamImport)
-def _unregister():
-    bpy.utils.unregister_class(MultiCamBakeStrips)
-    bpy.utils.unregister_class(MultiCamExport)
-    bpy.utils.unregister_class(MultiCamImport)
+def register():
+    bpy.utils.register_module(__name__)
+    #bpy.utils.register_class(MultiCamFadeToSource)
+    #bpy.utils.register_class(SEQUENCER_OT_bake_multicam_strips)
+    #bpy.utils.register_class(SEQUENCER_OT_export_multicam)
+    #bpy.utils.register_class(SEQUENCER_OT_import_multicam)
+    bpy.types.MulticamSequence.fade_to_source = bpy.props.PointerProperty(type=MultiCamFadeToSource)
+    
+def unregister():
+    #bpy.utils.unregister_class(MultiCamFadeToSource)
+    #bpy.utils.unregister_class(SEQUENCER_OT_bake_multicam_strips)
+    #bpy.utils.unregister_class(SEQUENCER_OT_export_multicam)
+    #bpy.utils.unregister_class(SEQUENCER_OT_import_multicam)
+    #del bpy.types.MulticamSequence.fade_to_source
+    bpy.utils.unregister_module(__name__)
 

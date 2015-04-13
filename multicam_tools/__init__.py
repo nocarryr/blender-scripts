@@ -1,4 +1,4 @@
-from multicam_tools import multicam, multicam_ui
+import bpy
 
 bl_info = {
     "name": "Multicam Tools",
@@ -10,13 +10,23 @@ bl_info = {
     "warning": "",
 }
 
+def get_is_registered():
+    module_obj = getattr(bpy.ops, 'multicam_tools', None)
+    if module_obj is None:
+        return False
+    if not len(dir(module_obj)):
+        return False
+    return True
+
 def register():
-    multicam._register()
-    multicam_ui._register()
+    from multicam_tools import multicam, multicam_ui
+    bpy.utils.register_module(__name__)
+    #multicam.register()
+    #multicam_ui.register()
     
 def unregister():
-    multicam._unregister()
-    multicam_ui._unregister()
-
-if __name__ == '__main__':
-    register()
+    from multicam_tools import multicam, multicam_ui
+    #multicam_ui.unregister()
+    #multicam.unregister()
+    bpy.utils.unregister_module(__name__)
+    

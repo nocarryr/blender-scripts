@@ -9,10 +9,7 @@ if mod_dir not in sys.path:
    
 import multicam_tools
 import imp
-imp.reload(multicam_tools)
-
-try:
+if multicam_tools.get_is_registered():
     multicam_tools.unregister()
-except RuntimeError:
-    pass
+    imp.reload(multicam_tools)
 multicam_tools.register()
