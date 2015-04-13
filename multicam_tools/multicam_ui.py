@@ -23,6 +23,8 @@ class MultiCamPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         row = layout.row()
+        row.operator('multicam_tools.bake_strips', text='Bake Strips')
+        row = layout.row()
         row.operator('multicam_tools.import', text='Import')
         row.operator('multicam_tools.export', text='Export')
     

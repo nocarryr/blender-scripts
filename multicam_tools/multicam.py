@@ -62,8 +62,9 @@ class BlendObj(object):
         action = self.context.scene.animation_data.action
         action.fcurves.remove(self.fcurve)
         self._fcurve = None
-    def insert_keyframe(self, frame, value, **kwargs):
-        prop = self.fcurve_property
+    def insert_keyframe(self, frame, value, prop=None, **kwargs):
+        if prop is None:
+            prop = self.fcurve_property
         if self.fcurve is None:
             self.blend_obj.keyframe_insert(prop, frame=frame)
             kf = self.get_keyframe(frame)
@@ -137,6 +138,17 @@ class MulticamSource(BlendObj):
                 value = 0.
             self.insert_keyframe(frame, value, interpolation='CONSTANT')
             
+class MultiCamBakeStrips(bpy.types.Operator):
+    '''Bakes the mulicam source into the affected strips using opacity'''
+    bl_idname = 'multicam_tools.bake_strips'
+    bl_label = 'Bake Multicam Strips'
+    def execute(self, context):
+        mc = MultiCam(blend_obj=context.scene.sequence_editor.active_strip, 
+                      context=context)
+        mc.build_cuts()
+        mc.build_strip_keyframes()
+        return {'FINISHED'}
+        
 class MultiCamExport(bpy.types.Operator, ExportHelper):
     bl_idname = 'multicam_tools.export'
     bl_label = 'Export Multicam'
@@ -168,9 +180,11 @@ class MultiCamImport(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
     
 def _register():
+    bpy.utils.register_class(MultiCamBakeStrips)
     bpy.utils.register_class(MultiCamExport)
     bpy.utils.register_class(MultiCamImport)
 def _unregister():
+    bpy.utils.unregister_class(MultiCamBakeStrips)
     bpy.utils.unregister_class(MultiCamExport)
     bpy.utils.unregister_class(MultiCamImport)
 
