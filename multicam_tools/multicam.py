@@ -86,6 +86,11 @@ class MultiCam(BlendObj):
         super(MultiCam, self).__init__(**kwargs)
         self.cuts = {}
         self.strips = {}
+    def bake_strips(self):
+        if not len(self.cuts):
+            self.build_cuts()
+        self.build_strip_keyframes()
+        self.blend_obj.mute = True
     def iter_keyframes(self):
         for kf in self.fcurve.keyframe_points.values():
             yield kf.co
@@ -121,6 +126,7 @@ class MulticamSource(BlendObj):
         cuts = self.multicam.cuts
         channel = self.blend_obj.channel
         is_active = False
+        is_first_keyframe = True
         for frame in sorted(cuts.keys()):
             cut = cuts[frame]
             if cut == channel:
@@ -129,8 +135,12 @@ class MulticamSource(BlendObj):
             elif is_active:
                 d[frame] = False
                 is_active = False
+            elif is_first_keyframe:
+                d[frame] = False
+            is_first_keyframe = False
         return d
     def build_keyframes(self):
+        self.remove_fcurve()
         for frame, is_active in self.keyframe_data.items():
             if is_active:
                 value = 1.
@@ -145,8 +155,7 @@ class MultiCamBakeStrips(bpy.types.Operator):
     def execute(self, context):
         mc = MultiCam(blend_obj=context.scene.sequence_editor.active_strip, 
                       context=context)
-        mc.build_cuts()
-        mc.build_strip_keyframes()
+        mc.bake_strips()
         return {'FINISHED'}
         
 class MultiCamExport(bpy.types.Operator, ExportHelper):
