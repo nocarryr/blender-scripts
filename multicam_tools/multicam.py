@@ -1,4 +1,7 @@
 import bpy
+from bpy.props import (IntProperty, 
+                       FloatProperty, 
+                       PointerProperty)
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 
 import json
@@ -154,10 +157,10 @@ class MultiCamFadeToSource(bpy.types.PropertyGroup):
     #fade_position = bpy.props.FloatProperty(name='Fade Position', min=0., max=1.)
     @classmethod
     def register(cls):
-        bpy.types.MulticamSequence.fade_to_source = bpy.props.PointerProperty(type=cls)
-        cls.next_source = bpy.props.IntProperty(name='Next Source')
-        cls.frame_duration = bpy.props.FloatProperty(name='Frame Duration', default=20.)
-        cls.fade_position = bpy.props.FloatProperty(name='Fade Position', min=0., max=1.)
+        bpy.types.MulticamSequence.fade_to_source = PointerProperty(type=cls)
+        cls.next_source = IntProperty(name='Next Source')
+        cls.frame_duration = FloatProperty(name='Frame Duration', default=20.)
+        cls.fade_position = FloatProperty(name='Fade Position', min=0., max=1.)
     @classmethod
     def unregister(cls):
         del bpy.types.MulticamSequence.fade_to_source
@@ -212,18 +215,15 @@ class SEQUENCER_OT_import_multicam(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
     
 def register():
-    bpy.utils.register_module(__name__)
-    #bpy.utils.register_class(MultiCamFadeToSource)
-    #bpy.utils.register_class(SEQUENCER_OT_bake_multicam_strips)
-    #bpy.utils.register_class(SEQUENCER_OT_export_multicam)
-    #bpy.utils.register_class(SEQUENCER_OT_import_multicam)
-    bpy.types.MulticamSequence.fade_to_source = bpy.props.PointerProperty(type=MultiCamFadeToSource)
+    bpy.utils.register_class(MultiCamFadeToSource)
+    bpy.utils.register_class(SEQUENCER_OT_bake_multicam_strips)
+    bpy.utils.register_class(SEQUENCER_OT_export_multicam)
+    bpy.utils.register_class(SEQUENCER_OT_import_multicam)
+    
     
 def unregister():
-    #bpy.utils.unregister_class(MultiCamFadeToSource)
-    #bpy.utils.unregister_class(SEQUENCER_OT_bake_multicam_strips)
-    #bpy.utils.unregister_class(SEQUENCER_OT_export_multicam)
-    #bpy.utils.unregister_class(SEQUENCER_OT_import_multicam)
-    #del bpy.types.MulticamSequence.fade_to_source
-    bpy.utils.unregister_module(__name__)
+    bpy.utils.unregister_class(MultiCamFadeToSource)
+    bpy.utils.unregister_class(SEQUENCER_OT_bake_multicam_strips)
+    bpy.utils.unregister_class(SEQUENCER_OT_export_multicam)
+    bpy.utils.unregister_class(SEQUENCER_OT_import_multicam)
 

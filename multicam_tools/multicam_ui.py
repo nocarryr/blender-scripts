@@ -38,9 +38,7 @@ class SEQUENCER_PT_multicam_tools(bpy.types.Panel):
         row.operator('sequencer.export_multicam', text='Export')
     
 def register():
-    #bpy.utils.register_class(SEQUENCER_PT_multicam_tools)
-    bpy.utils.register_module(__name__)
+    bpy.utils.register_class(SEQUENCER_PT_multicam_tools)
     
 def unregister():
-    #bpy.utils.unregister_class(SEQUENCER_PT_multicam_tools)
-    bpy.utils.unregister_module(__name__)
+    bpy.utils.unregister_class(SEQUENCER_PT_multicam_tools)
