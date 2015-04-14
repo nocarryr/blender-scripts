@@ -1,5 +1,6 @@
 import bpy
 from .utils import MultiCamContext
+from .multicam_fade import MultiCamFaderProperties
 
     
 class MultiCamPanel(bpy.types.Panel, MultiCamContext):
@@ -9,9 +10,14 @@ class MultiCamPanel(bpy.types.Panel, MultiCamContext):
     bl_region_type = 'UI'
     def draw(self, context):
         layout = self.layout
+        mc_strip = self.get_strip(context)
+        fade_props = MultiCamFaderProperties.get_for_strip(mc_strip, context)
         row = layout.row()
-        ## TEMPORARY
-        row.operator('sequencer.multicam_create_props', text='Create Props')
+        if fade_props is None:
+            row.operator('sequencer.multicam_create_props', text='Create Props')
+        else:
+            row.prop(fade_props, 'next_source')
+            row.prop(fade_props, 'fade_position')
         row = layout.row()
         row.operator('sequencer.bake_multicam_strips', text='Bake Strips')
         row = layout.row()
