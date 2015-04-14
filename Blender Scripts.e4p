@@ -15,12 +15,12 @@
   <Sources>
     <Source>multicam_export.py</Source>
     <Source>blender_sound_bake.py</Source>
-    <Source>__init__.py</Source>
     <Source>multicam_tools/__init__.py</Source>
     <Source>multicam_tools/multicam.py</Source>
     <Source>multicam_tools/multicam_ui.py</Source>
     <Source>multicam_tools/test_blend_script.py</Source>
     <Source>multicam_tools/multicam_fade.py</Source>
+    <Source>multicam_tools/utils.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

@@ -3,6 +3,8 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 
 import json
 
+from .utils import MultiCamContext
+
 class BlendObj(object):
     def __init__(self, **kwargs):
         self.context = kwargs.get('context')
@@ -148,22 +150,22 @@ class MulticamSource(BlendObj):
                 value = 0.
             self.insert_keyframe(frame, value, interpolation='CONSTANT')
     
-class MultiCamBakeStrips(bpy.types.Operator):
+class MultiCamBakeStrips(bpy.types.Operator, MultiCamContext):
     '''Bakes the mulicam source into the affected strips using opacity'''
     bl_idname = 'sequencer.bake_multicam_strips'
     bl_label = 'Bake Multicam Strips'
     def execute(self, context):
-        mc = MultiCam(blend_obj=context.scene.sequence_editor.active_strip, 
+        mc = MultiCam(blend_obj=self.get_strip(context), 
                       context=context)
         mc.bake_strips()
         return {'FINISHED'}
         
-class MultiCamExport(bpy.types.Operator, ExportHelper):
+class MultiCamExport(bpy.types.Operator, ExportHelper, MultiCamContext):
     bl_idname = 'sequencer.export_multicam'
     bl_label = 'Export Multicam'
     filename_ext = '.json'
     def execute(self, context):
-        mc = MultiCam(blend_obj=context.scene.sequence_editor.active_strip, 
+        mc = MultiCam(blend_obj=self.get_strip(context), 
                       context=context)
         data = {}
         for frame, value in mc.iter_keyframes():
@@ -174,14 +176,14 @@ class MultiCamExport(bpy.types.Operator, ExportHelper):
             f.write(json.dumps(out_data, indent=2))
         return {'FINISHED'}
         
-class MultiCamImport(bpy.types.Operator, ImportHelper):
+class MultiCamImport(bpy.types.Operator, ImportHelper, MultiCamContext):
     bl_idname = 'sequencer.import_multicam'
     bl_label = 'Import Multicam'
     filename_ext = '.json'
     def execute(self, context):
         with open(self.filepath, 'r') as f:
             data = json.loads(f.read())
-        mc = MultiCam(blend_obj=context.scene.sequence_editor.active_strip, 
+        mc = MultiCam(blend_obj=self.get_strip(context), 
                       context=context)
         mc.remove_fcurve()
         for frame, value in data:

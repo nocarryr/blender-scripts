@@ -3,11 +3,7 @@ from bpy.props import (IntProperty,
                        FloatProperty, 
                        StringProperty, 
                        CollectionProperty)
-
-def get_active_strip(context=None):
-    if context is None:
-        context = bpy.context
-    return context.scene.sequence_editor.active_strip
+from .utils import MultiCamContext
     
 class MultiCamFaderProperties(bpy.types.PropertyGroup):
     @classmethod
@@ -48,21 +44,11 @@ class MultiCamFaderProperties(bpy.types.PropertyGroup):
             prop.multicam_strip_path = data_path
         return prop, created
     
-class MultiCamFaderCreateProps(bpy.types.Operator):
+class MultiCamFaderCreateProps(bpy.types.Operator, MultiCamContext):
     bl_idname = 'sequencer.multicam_create_props'
     bl_label = 'Multicam Fader Create Props'
-    @classmethod
-    def poll(cls, context):
-        if context.area.type != 'SEQUENCE_EDITOR':
-            return 0
-        active_strip = get_active_strip(context)
-        if active_strip is None:
-            return 0
-        if active_strip.type != 'MULTICAM':
-            return 0
-        return 1
     def execute(self, context):
-        mc_strip = get_active_strip()
+        mc_strip = self.get_strip(context)
         MultiCamFaderProperties.get_or_create(context=context, mc_strip=mc_strip)
         return {'FINISHED'}
     
