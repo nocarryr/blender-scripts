@@ -174,7 +174,7 @@ class MultiCamFadeToSource(bpy.types.PropertyGroup):
 #    source_start = bpy.props.IntProperty(name='Start Source')
 #    source_end = bpy.props.IntProperty(name='End Source')
     
-class SEQUENCER_OT_bake_multicam_strips(bpy.types.Operator):
+class MultiCamBakeStrips(bpy.types.Operator):
     '''Bakes the mulicam source into the affected strips using opacity'''
     bl_idname = 'sequencer.bake_multicam_strips'
     bl_label = 'Bake Multicam Strips'
@@ -184,7 +184,7 @@ class SEQUENCER_OT_bake_multicam_strips(bpy.types.Operator):
         mc.bake_strips()
         return {'FINISHED'}
         
-class SEQUENCER_OT_export_multicam(bpy.types.Operator, ExportHelper):
+class MultiCamExport(bpy.types.Operator, ExportHelper):
     bl_idname = 'sequencer.export_multicam'
     bl_label = 'Export Multicam'
     filename_ext = '.json'
@@ -200,7 +200,7 @@ class SEQUENCER_OT_export_multicam(bpy.types.Operator, ExportHelper):
             f.write(json.dumps(out_data, indent=2))
         return {'FINISHED'}
         
-class SEQUENCER_OT_import_multicam(bpy.types.Operator, ImportHelper):
+class MultiCamImport(bpy.types.Operator, ImportHelper):
     bl_idname = 'sequencer.import_multicam'
     bl_label = 'Import Multicam'
     filename_ext = '.json'
@@ -216,14 +216,14 @@ class SEQUENCER_OT_import_multicam(bpy.types.Operator, ImportHelper):
     
 def register():
     bpy.utils.register_class(MultiCamFadeToSource)
-    bpy.utils.register_class(SEQUENCER_OT_bake_multicam_strips)
-    bpy.utils.register_class(SEQUENCER_OT_export_multicam)
-    bpy.utils.register_class(SEQUENCER_OT_import_multicam)
+    bpy.utils.register_class(MultiCamBakeStrips)
+    bpy.utils.register_class(MultiCamExport)
+    bpy.utils.register_class(MultiCamImport)
     
     
 def unregister():
     bpy.utils.unregister_class(MultiCamFadeToSource)
-    bpy.utils.unregister_class(SEQUENCER_OT_bake_multicam_strips)
-    bpy.utils.unregister_class(SEQUENCER_OT_export_multicam)
-    bpy.utils.unregister_class(SEQUENCER_OT_import_multicam)
+    bpy.utils.unregister_class(MultiCamBakeStrips)
+    bpy.utils.unregister_class(MultiCamExport)
+    bpy.utils.unregister_class(MultiCamImport)
 
