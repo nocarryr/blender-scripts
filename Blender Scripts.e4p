@@ -20,6 +20,7 @@
     <Source>multicam_tools/multicam.py</Source>
     <Source>multicam_tools/multicam_ui.py</Source>
     <Source>multicam_tools/test_blend_script.py</Source>
+    <Source>multicam_tools/multicam_fade.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

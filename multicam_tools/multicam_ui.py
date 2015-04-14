@@ -23,6 +23,9 @@ class MultiCamPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         row = layout.row()
+        ## TEMPORARY
+        row.operator('sequencer.multicam_create_props', text='Create Props')
+        row = layout.row()
         row.operator('sequencer.bake_multicam_strips', text='Bake Strips')
         row = layout.row()
         row.operator('sequencer.import_multicam', text='Import')

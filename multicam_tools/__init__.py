@@ -19,14 +19,22 @@ def get_is_registered():
     return True
 
 def register():
-    from . import multicam, multicam_ui
+    from . import (
+        multicam, 
+        multicam_fade, 
+        multicam_ui)
     #bpy.utils.register_module(__name__)
     multicam.register()
+    multicam_fade.register()
     multicam_ui.register()
     
 def unregister():
-    from . import multicam, multicam_ui
+    from . import (
+        multicam, 
+        multicam_fade, 
+        multicam_ui)
     multicam_ui.unregister()
+    multicam_fade.unregister()
     multicam.unregister()
     #bpy.utils.unregister_module(__name__)
     

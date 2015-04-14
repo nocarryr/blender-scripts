@@ -1,7 +1,4 @@
 import bpy
-from bpy.props import (IntProperty, 
-                       FloatProperty, 
-                       PointerProperty)
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 
 import json
@@ -150,29 +147,6 @@ class MulticamSource(BlendObj):
             else:
                 value = 0.
             self.insert_keyframe(frame, value, interpolation='CONSTANT')
-            
-class MultiCamFadeToSource(bpy.types.PropertyGroup):
-    #next_source = bpy.props.IntProperty(name='Next Source')
-    #frame_duration = bpy.props.FloatProperty(name='Frame Duration', default=20.)
-    #fade_position = bpy.props.FloatProperty(name='Fade Position', min=0., max=1.)
-    @classmethod
-    def register(cls):
-        bpy.types.MulticamSequence.fade_to_source = PointerProperty(type=cls)
-        cls.next_source = IntProperty(name='Next Source')
-        cls.frame_duration = FloatProperty(name='Frame Duration', default=20.)
-        cls.fade_position = FloatProperty(name='Fade Position', min=0., max=1.)
-    @classmethod
-    def unregister(cls):
-        del bpy.types.MulticamSequence.fade_to_source
-
-#class MultiCamFadeToSource(bpy.types.Operator):
-#    '''Creates a dissolve to the desired source'''
-#    bl_idname = 'multicam_tools.fade_to_source'
-#    bl_label = 'Fade to Source'
-#    frame_start = bpy.props.FloatProperty(name='Start Frame')
-#    frame_end = bpy.props.FloatProperty(name='End Frame')
-#    source_start = bpy.props.IntProperty(name='Start Source')
-#    source_end = bpy.props.IntProperty(name='End Source')
     
 class MultiCamBakeStrips(bpy.types.Operator):
     '''Bakes the mulicam source into the affected strips using opacity'''
@@ -215,14 +189,12 @@ class MultiCamImport(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
     
 def register():
-    bpy.utils.register_class(MultiCamFadeToSource)
     bpy.utils.register_class(MultiCamBakeStrips)
     bpy.utils.register_class(MultiCamExport)
     bpy.utils.register_class(MultiCamImport)
     
     
 def unregister():
-    bpy.utils.unregister_class(MultiCamFadeToSource)
     bpy.utils.unregister_class(MultiCamBakeStrips)
     bpy.utils.unregister_class(MultiCamExport)
     bpy.utils.unregister_class(MultiCamImport)
