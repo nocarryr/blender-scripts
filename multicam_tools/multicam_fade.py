@@ -127,12 +127,12 @@ class MultiCamFader(bpy.types.Operator, MultiCamContext):
         for attr in attrs:
             context.scene.keyframe_insert(data_path='.'.join([data_path, attr]), 
                                           frame=start_frame, 
-                                          group='FaderGroup')
+                                          group='Multicam Fader (%s)' % (mc_strip.name))
         fade_props.fade_position = 1.
         for attr in attrs:
             context.scene.keyframe_insert(data_path='.'.join([data_path, attr]), 
                                           frame=ops_props.end_frame, 
-                                          group='FaderGroup')
+                                          group='Multicam Fader (%s)' % (mc_strip.name))
         return {'FINISHED'}
         
     
