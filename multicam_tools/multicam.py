@@ -121,6 +121,19 @@ class MultiCam(BlendObj):
             self.cuts[frame] = channel
             if channel not in self.strips:
                 self.get_strip_from_channel(channel)
+    def build_fade(self, fade=None, frame=None):
+        if fade is None and frame is not None:
+            fade = self.mc_fader.build_fade(frame)
+        if fade is None:
+            return
+        for channel in range(1, self.blend_obj.channel):
+            if channel not in self.strips:
+                self.get_strip_from_channel(channel)
+            if channel not in self.strips:
+                continue
+            self.strips[channel].build_fade(fade)
+    def build_fades(self):
+        self.mc_fader.build_fades()
     def build_strip_keyframes(self):
         for strip in self.strips.values():
             strip.build_keyframes()
@@ -158,7 +171,10 @@ class MultiCamFade(BlendObj):
             key = fc.data_path.split('.')[-1]
             fade_prop = self.add_child(MultiCamFadeProp, fcurve_property=key)
             self.fade_props[key] = fade_prop
-    def build_fades(self):
+    def build_fade(self, frame):
+        self.build_fades(frame)
+        return self.fades.get(frame)
+    def build_fades(self, fade_frame=None):
         prop_iters = {}
         for key, prop in self.fade_props.items():
             prop_iters[key] = prop.iter_keyframes()
@@ -185,14 +201,30 @@ class MultiCamFade(BlendObj):
                 prop_vals['end'][key] = value
             return start_frame, end_frame, prop_vals
         while True:
+            need_update = False
             start_frame, end_frame, prop_vals = find_next_fade()
             if start_frame is None:
                 break
-            self.fades[start_frame] = {
+            if fade_frame is not None and fade_frame != start_frame:
+                continue
+            d = {
                 'start_frame':start_frame, 
                 'end_frame':end_frame, 
-                'prop_vals':prop_vals, 
+                'start_source':prop_vals['start']['start_source'], 
+                'next_source':prop_vals['start']['next_source'], 
             }
+            if start_frame not in self.fades:
+                need_update = True
+                self.fades[start_frame] = d
+            else:
+                for key, val in self.fades[start_frame].items():
+                    if d[key] != val:
+                        need_update = True
+                        self.fades[start_frame][key] = d[key]
+            if need_update:
+                self.multicam.build_fade(d)
+            if fade_frame is not None:
+                break
             
 class MultiCamFadeProp(BlendObj):
     def __init__(self, **kwargs):
@@ -204,6 +236,7 @@ class MulticamSource(BlendObj):
     def __init__(self, **kwargs):
         super(MulticamSource, self).__init__(**kwargs)
         self.multicam = self.parent
+        self.mc_fader = self.multicam.mc_fader
         self._keyframe_data = None
     @property
     def keyframe_data(self):
@@ -229,6 +262,36 @@ class MulticamSource(BlendObj):
                 d[frame] = False
             is_first_keyframe = False
         return d
+    def build_fade(self, fade):
+        channel = self.blend_obj.channel
+        start_frame = fade['start_frame']
+        end_frame = fade['end_frame']
+        start_ch = fade['start_source']
+        end_ch = fade['next_source']
+        if channel < min([start_ch, end_ch]):
+            ## this strip won't be affected
+            return
+        if start_ch == channel:
+            if end_ch < channel:
+                values = [1., 0.]
+            else:
+                values = [1., 1.]
+        elif end_ch == channel:
+            if start_ch < channel:
+                values = [0., 1.]
+            else:
+                values = [1., 1.]
+        elif channel > max([start_ch, end_ch]) or channel < max([start_ch, end_ch]):
+            values = [0., 0.]
+        else:
+            return
+        self.insert_keyframe(start_frame, values[0], interpolation='BEZIER')
+        self.insert_keyframe(end_frame, values[1], interpolation='CONSTANT')
+        self.insert_keyframe(end_frame+1, 1., interpolation='CONSTANT')
+    def build_fades(self):
+        for start_frame in sorted(self.mc_fader.fades.keys()):
+            fade = self.mc_fader.fades[start_frame]
+            self.build_fade(fade)
     def build_keyframes(self):
         self.remove_fcurve()
         for frame, is_active in self.keyframe_data.items():

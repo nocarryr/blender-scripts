@@ -4,6 +4,7 @@ from bpy.props import (IntProperty,
                        PointerProperty, 
                        CollectionProperty)
 from .utils import MultiCamContext
+from .multicam import MultiCam
     
 class MultiCamFaderProperties(bpy.types.PropertyGroup):
     @classmethod
@@ -133,6 +134,10 @@ class MultiCamFader(bpy.types.Operator, MultiCamContext):
             context.scene.keyframe_insert(data_path='.'.join([data_path, attr]), 
                                           frame=ops_props.end_frame, 
                                           group='Multicam Fader (%s)' % (mc_strip.name))
+        multicam = MultiCam(blend_obj=mc_strip, context=context)
+        multicam.insert_keyframe(start_frame, mc_strip.channel - 1, interpolation='CONSTANT')
+        multicam.insert_keyframe(ops_props.end_frame, fade_props['next_source'], interpolation='CONSTANT')
+        multicam.build_fade(fade=None, frame=start_frame)
         return {'FINISHED'}
         
     
