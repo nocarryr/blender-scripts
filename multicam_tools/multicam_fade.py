@@ -57,7 +57,7 @@ class DummyContext(object):
 class MultiCamFaderOpsProperties(bpy.types.PropertyGroup):
     def on_end_frame_update(self, context):
         start = self.get_start_frame(context)
-        duration = start + self.end_frame
+        duration = self.end_frame - start
         if duration == self.frame_duration:
             return
         self.frame_duration = duration
@@ -70,7 +70,11 @@ class MultiCamFaderOpsProperties(bpy.types.PropertyGroup):
     def get_start_frame(self, context=None):
         if context is None:
             context = bpy.context
-        return context.scene.frame_current_final
+        if isinstance(context, bpy.types.Scene):
+            scene = context
+        else:
+            scene = context.scene
+        return scene.frame_current_final
     @classmethod
     def register(cls):
         bpy.types.Scene.multicam_fader_ops_properties = PointerProperty(type=cls)
@@ -84,8 +88,12 @@ class MultiCamFaderOpsProperties(bpy.types.PropertyGroup):
         if context is None:
             context = bpy.context
         self.on_frame_duration_update(context)
-    def on_frame_change(self, scene):
-        self.on_frame_duration_update(DummyContext(scene))
+    @staticmethod
+    def on_frame_change(scene):
+        if bpy.context.screen.is_animation_playing:
+            return
+        prop = scene.multicam_fader_ops_properties
+        prop.on_frame_duration_update(scene)
     
 class MultiCamFader(bpy.types.Operator, MultiCamContext):
     bl_idname = 'scene.multicam_fader'
@@ -120,6 +128,7 @@ def register():
     bpy.utils.register_class(MultiCamFaderCreateProps)
     bpy.utils.register_class(MultiCamFaderOpsProperties)
     bpy.utils.register_class(MultiCamFader)
+    bpy.app.handlers.frame_change_pre.append(MultiCamFaderOpsProperties.on_frame_change)
     
 def unregister():
     bpy.utils.unregister_class(MultiCamFader)

@@ -17,10 +17,6 @@ class MultiCamPanel(bpy.types.Panel, MultiCamContext):
         if fade_props is None:
             row.operator('sequencer.multicam_create_props', text='Create Props')
         else:
-            ## XXX can't set these properties within the context
-            #ops_props.update_props(context)
-            ## TODO: find a way to remove this handler when inactive
-            #bpy.app.handlers.frame_change_pre.append(ops_props.on_frame_change)
             box = row.box()
             box.prop(ops_props, 'destination_source')
             box.prop(ops_props, 'end_frame')
