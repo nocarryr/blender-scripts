@@ -1,7 +1,6 @@
 import bpy
 from bpy.props import (IntProperty, 
                        FloatProperty, 
-                       StringProperty, 
                        CollectionProperty)
 from .utils import MultiCamContext
     
@@ -9,7 +8,6 @@ class MultiCamFaderProperties(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Scene.multicam_fader_properties = CollectionProperty(type=cls)
-        cls.multicam_strip_path = StringProperty(name='Multicam Strip Data Path')
         cls.next_source = IntProperty(name='Next Source')
         #cls.frame_duration = FloatProperty(name='Frame Duration', default=20.)
         cls.fade_position = FloatProperty(name='Fade Position', min=0., max=1.)
@@ -20,9 +18,7 @@ class MultiCamFaderProperties(bpy.types.PropertyGroup):
     def get_for_data_path(cls, data_path, context=None):
         if context is None:
             context = bpy.context
-        for prop in context.scene.multicam_fader_properties:
-            if prop.multicam_strip_path == data_path:
-                return prop
+        return context.scene.multicam_fader_properties.get(data_path)
     @classmethod
     def get_for_strip(cls, mc_strip, context=None):
         data_path = mc_strip.path_from_id()
@@ -41,7 +37,7 @@ class MultiCamFaderProperties(bpy.types.PropertyGroup):
             if data_path is None:
                 data_path = mc_strip.path_from_id()
             prop = context.scene.multicam_fader_properties.add()
-            prop.multicam_strip_path = data_path
+            prop.name = data_path
         return prop, created
     
 class MultiCamFaderCreateProps(bpy.types.Operator, MultiCamContext):
