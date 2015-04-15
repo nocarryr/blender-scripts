@@ -115,21 +115,22 @@ class MultiCamFader(bpy.types.Operator, MultiCamContext):
             context = bpy.context
         return context.scene.frame_current_final
     def execute(self, context):
-        mc_strip = self.get_strip()
-        fade_props = MultiCamFaderProperties.get_or_create(context=context, mc_strip=mc_strip)
+        mc_strip = self.get_strip(context)
+        fade_props, created = MultiCamFaderProperties.get_or_create(context=context, mc_strip=mc_strip)
         ops_props = context.scene.multicam_fader_ops_properties
         start_frame = self.get_start_frame(context)
         fade_props.start_source = mc_strip.multicam_source
         fade_props.next_source = ops_props.destination_source
         fade_props.fade_position = 0.
+        data_path = fade_props.path_from_id()
         attrs = ['start_source', 'next_source', 'fade_position']
         for attr in attrs:
-            context.scene.keyframe_insert(data_path='.'.join([fade_props.name, attr]), 
+            context.scene.keyframe_insert(data_path='.'.join([data_path, attr]), 
                                           frame=start_frame, 
                                           group='FaderGroup')
         fade_props.fade_position = 1.
         for attr in attrs:
-            context.scene.keyframe_insert(data_path='.'.join([fade_props.name, attr]), 
+            context.scene.keyframe_insert(data_path='.'.join([data_path, attr]), 
                                           frame=ops_props.end_frame, 
                                           group='FaderGroup')
         return {'FINISHED'}
