@@ -1,4 +1,5 @@
 import bpy
+from bpy.app.handlers import persistent
 from bpy.props import (IntProperty, 
                        FloatProperty, 
                        PointerProperty, 
@@ -146,7 +147,11 @@ def register():
     bpy.utils.register_class(MultiCamFaderCreateProps)
     bpy.utils.register_class(MultiCamFaderOpsProperties)
     bpy.utils.register_class(MultiCamFader)
-    bpy.app.handlers.frame_change_pre.append(MultiCamFaderOpsProperties.on_frame_change)
+    
+    @persistent
+    def on_frame_change(scene):
+        MultiCamFaderOpsProperties.on_frame_change(scene)
+    bpy.app.handlers.frame_change_pre.append(on_frame_change)
     
 def unregister():
     bpy.utils.unregister_class(MultiCamFader)
