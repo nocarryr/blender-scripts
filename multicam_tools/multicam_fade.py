@@ -78,9 +78,21 @@ class MultiCamFaderOpsProperties(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Scene.multicam_fader_ops_properties = PointerProperty(type=cls)
-        cls.destination_source = IntProperty()
-        cls.end_frame = FloatProperty(update=cls.on_end_frame_update)
-        cls.frame_duration = FloatProperty(default=20., update=cls.on_frame_duration_update)
+        cls.destination_source = IntProperty(
+            name='Destination Source', 
+            description='The source to transition to', 
+        )
+        cls.end_frame = FloatProperty(
+            name='End Frame', 
+            description='Ending frame for transition (relative to current)', 
+            update=cls.on_end_frame_update, 
+        )
+        cls.frame_duration = FloatProperty(
+            name='Frame Duration', 
+            description='Duration of the transition', 
+            default=20., 
+            update=cls.on_frame_duration_update, 
+        )
     @classmethod
     def unregister(cls):
         del bpy.types.Scene.multicam_fader_ops_properties
