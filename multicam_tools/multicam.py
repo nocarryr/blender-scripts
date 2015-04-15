@@ -5,6 +5,12 @@ import json
 
 from .utils import MultiCamContext
 
+class MultiCamFadeError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+    def __str__(self):
+        return repr(self.msg)
+        
 class BlendObj(object):
     def __init__(self, **kwargs):
         self.context = kwargs.get('context')
@@ -64,6 +70,9 @@ class BlendObj(object):
         action = self.context.scene.animation_data.action
         action.fcurves.remove(self.fcurve)
         self._fcurve = None
+    def iter_keyframes(self):
+        for kf in self.fcurve.keyframe_points.values():
+            yield kf.co
     def insert_keyframe(self, frame, value, prop=None, **kwargs):
         if prop is None:
             prop = self.fcurve_property
@@ -93,9 +102,6 @@ class MultiCam(BlendObj):
             self.build_cuts()
         self.build_strip_keyframes()
         self.blend_obj.mute = True
-    def iter_keyframes(self):
-        for kf in self.fcurve.keyframe_points.values():
-            yield kf.co
     def build_cuts(self):
         for frame, channel in self.iter_keyframes():
             self.cuts[frame] = channel
@@ -111,6 +117,75 @@ class MultiCam(BlendObj):
                 self.strips[channel] = source
                 return source
                 
+class MultiCamFade(BlendObj):
+    def __init__(self, **kwargs):
+        self.multicam = kwargs.get('multicam')
+        self.fade_props = {}
+        self.fades = {}
+        kwargs.setdefault('context', self.multicam.context)
+        super(MultiCamFade, self).__init__(**kwargs)
+        if self.blend_obj is None:
+            self.blend_obj = self.get_fade_prop_group()
+    def on_blend_obj_set(self, new, old):
+        self.fade_props.clear()
+        self.fades.clear()
+        if new is None:
+            return
+        self.get_fade_props()
+    def get_fade_prop_group(self):
+        mc_data_path = self.multicam.blend_obj.path_from_id()
+        return self.context.scene.multicam_fader_properties.get(mc_data_path)
+    def get_fade_props(self):
+        action = self.context.scene.animation_data.action
+        group_name = 'Multicam Fader (%s)' % (self.multicam.blend_obj.name)
+        group = action.groups.get(group_name)
+        for fc in group.channels:
+            key = fc.data_path.split('.')[-1]
+            fade_prop = MultiCamFadeProp(multicam_fade=self, fcurve_property=key)
+            self.fade_props[key] = fade_prop
+    def build_fades(self):
+        prop_iters = {}
+        for key, prop in self.fade_props.items():
+            prop_iters[key] = prop.iter_keyframes()
+        def find_next_fade(frame=None):
+            prop_vals = {'start':{}, 'end':{}}
+            start_frame = None
+            try:
+                for key, prop in prop_iters.items():
+                    frame, value = next(prop)
+                    if start_frame is None:
+                        start_frame = frame
+                    elif frame != start_frame:
+                        raise MultiCamFadeError('keyframes are not aligned: %s' % ({'frame':frame, 'prop_vals':prop_vals}))
+                    prop_vals['start'][key] = value
+            except StopIteration:
+                return None, None, None
+            end_frame = None
+            for key, prop in prop_iters.items():
+                frame, value = next(prop)
+                if end_frame is None:
+                    end_frame = frame
+                elif frame != end_frame:
+                    raise MultiCamFadeError('keyframes are not aligned: %s' % ({'frame':frame, 'prop_vals':prop_vals}))
+                prop_vals['end'][key] = value
+            return start_frame, end_frame, prop_vals
+        while True:
+            start_frame, end_frame, prop_vals = find_next_fade()
+            if start_frame is None:
+                break
+            self.fades[start_frame] = {
+                'start_frame':start_frame, 
+                'end_frame':end_frame, 
+                'prop_vals':prop_vals, 
+            }
+            
+class MultiCamFadeProp(BlendObj):
+    def __init__(self, **kwargs):
+        self.multicam_fade = kwargs.get('multicam_fade')
+        kwargs.setdefault('context', self.multicam_fade.context)
+        kwargs.setdefault('blend_obj', self.multicam_fade.blend_obj)
+        super(MultiCamFadeProp, self).__init__(**kwargs)
+        
 class MulticamSource(BlendObj):
     fcurve_property = 'blend_alpha'
     def __init__(self, **kwargs):
@@ -167,13 +242,14 @@ class MultiCamExport(bpy.types.Operator, ExportHelper, MultiCamContext):
     def execute(self, context):
         mc = MultiCam(blend_obj=self.get_strip(context), 
                       context=context)
-        data = {}
+        mc_fader = MultiCamFade(multicam=mc)
+        mc_fader.build_fades()
+        data = {'cuts':{}}
         for frame, value in mc.iter_keyframes():
-            data[frame] = value
-        keys = sorted(data.keys())
-        out_data = [(key, data[key]) for key in keys]
+            data['cuts'][frame] = value
+        data['fades'] = mc_fader.fades
         with open(self.filepath, 'w') as f:
-            f.write(json.dumps(out_data, indent=2))
+            f.write(json.dumps(data, indent=2))
         return {'FINISHED'}
         
 class MultiCamImport(bpy.types.Operator, ImportHelper, MultiCamContext):
@@ -186,8 +262,8 @@ class MultiCamImport(bpy.types.Operator, ImportHelper, MultiCamContext):
         mc = MultiCam(blend_obj=self.get_strip(context), 
                       context=context)
         mc.remove_fcurve()
-        for frame, value in data:
-            mc.insert_keyframe(frame, value, interpolation='CONSTANT')
+        for frame, value in data['cuts'].items():
+            mc.insert_keyframe(float(frame), value, interpolation='CONSTANT')
         return {'FINISHED'}
     
 def register():
