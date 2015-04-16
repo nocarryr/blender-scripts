@@ -12,6 +12,31 @@ def get_active_strip(context=None):
         context = bpy.context
     return context.scene.sequence_editor.active_strip
     
+def get_fcurve(scene, data_path):
+    action = scene.animation_data.action
+    for fc in action.fcurves:
+        if fc.data_path == data_path:
+            return fc
+
+def iter_keyframes(**kwargs):
+    fcurves = kwargs.get('fcurves')
+    if fcurves is None:
+        scene = kwargs.get('scene')
+        action = scene.animation_data.action
+        fcurves = action.fcurves
+    for fc in fcurves:
+        for kf in fc.keyframe_points:
+            yield kf, fc
+        
+def get_keyframe_dict(**kwargs):
+    d = {}
+    for kf, fc in iter_keyframes(**kwargs):
+        frame = kf[0]
+        if frame not in d:
+            d[frame] = {}
+        d[frame][fc.data_path] = {'keyframe':kf, 'fcurve':fc}
+    return d
+    
 class MultiCamContext:
     @classmethod
     def poll(cls, context):
