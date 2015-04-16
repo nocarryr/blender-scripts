@@ -11,7 +11,7 @@ class MultiCamPanel(bpy.types.Panel, MultiCamContext):
     def draw(self, context):
         layout = self.layout
         mc_strip = self.get_strip(context)
-        fade_props = MultiCamFaderProperties.get_for_strip(mc_strip, context)
+        fade_props = MultiCamFaderProperties.get_for_strip(mc_strip)
         ops_props = context.scene.multicam_fader_ops_properties
         row = layout.row()
         if fade_props is None:

@@ -4,6 +4,7 @@ from bpy.props import (IntProperty,
                        FloatProperty, 
                        PointerProperty, 
                        CollectionProperty)
+from . import utils
 from .utils import MultiCamContext
 from .multicam import MultiCam
     
@@ -19,28 +20,51 @@ class MultiCamFaderProperties(bpy.types.PropertyGroup):
     def unregister(cls):
         del bpy.types.Scene.multicam_fader_properties
     @classmethod
-    def get_for_data_path(cls, data_path, context=None):
-        if context is None:
-            context = bpy.context
-        return context.scene.multicam_fader_properties.get(data_path)
+    def _handle_get_kwargs(cls, **kwargs):
+        if kwargs.get('handled'):
+            return kwargs
+        mc_strip = kwargs.get('mc_strip')
+        data_path = kwargs.get('data_path')
+        context = kwargs.get('context')
+        scene = kwargs.get('scene')
+        if mc_strip is not None:
+            kwargs['data_path'] = mc_strip.path_from_id()
+            kwargs['scene'] = mc_strip.id_data
+        elif data_path is not None:
+            if data_path.startswith('bpy.data'):
+                kwargs['mc_strip'] = utils.get_bpy_obj_from_data_path(data_path)
+                kwargs['scene'] = kwargs['mc_strip'].id_data
+                kwargs['data_path'] = kwargs['mc_strip'].path_from_id()
+            else:
+                if scene is None:
+                    if context is None:
+                        context = bpy.context
+                        kwargs['context'] = context
+                    scene = context.scene
+                    kwargs['scene'] = scene
+                kwargs['mc_strip'] = scene.path_resolve(data_path)
+        kwargs['handled'] = True
+        return kwargs
     @classmethod
-    def get_for_strip(cls, mc_strip, context=None):
+    def get_props(cls, **kwargs):
+        kwargs = cls._handle_get_kwargs(**kwargs)
+        scene = kwargs.get('scene')
+        data_path = kwargs.get('data_path')
+        return scene.multicam_fader_properties.get(data_path)
+    @classmethod
+    def get_for_strip(cls, mc_strip):
         data_path = mc_strip.path_from_id()
-        return cls.get_for_data_path(data_path, context)
+        scene = mc_strip.id_data
+        return cls.get_props(data_path=data_path, scene=scene)
     @classmethod
     def get_or_create(cls, **kwargs):
-        context = kwargs.get('context')
-        data_path = kwargs.get('data_path')
-        if data_path is not None:
-            prop = cls.get_for_data_path(data_path, context)
-        else:
-            mc_strip = kwargs.get('mc_strip')
-            prop = cls.get_for_strip(mc_strip)
+        kwargs = cls._handle_get_kwargs(**kwargs)
+        prop = cls.get_props(**kwargs)
         created = prop is None
         if created:
-            if data_path is None:
-                data_path = mc_strip.path_from_id()
-            prop = context.scene.multicam_fader_properties.add()
+            data_path = kwargs.get('data_path')
+            scene = kwargs.get('scene')
+            prop = scene.multicam_fader_properties.add()
             prop.name = data_path
         return prop, created
     
@@ -49,7 +73,7 @@ class MultiCamFaderCreateProps(bpy.types.Operator, MultiCamContext):
     bl_label = 'Multicam Fader Create Props'
     def execute(self, context):
         mc_strip = self.get_strip(context)
-        MultiCamFaderProperties.get_or_create(context=context, mc_strip=mc_strip)
+        MultiCamFaderProperties.get_or_create(mc_strip=mc_strip)
         return {'FINISHED'}
     
 class DummyContext(object):
@@ -118,7 +142,7 @@ class MultiCamFader(bpy.types.Operator, MultiCamContext):
         return context.scene.frame_current_final
     def execute(self, context):
         mc_strip = self.get_strip(context)
-        fade_props, created = MultiCamFaderProperties.get_or_create(context=context, mc_strip=mc_strip)
+        fade_props, created = MultiCamFaderProperties.get_or_create(mc_strip=mc_strip)
         ops_props = context.scene.multicam_fader_ops_properties
         start_frame = self.get_start_frame(context)
         fade_props.start_source = mc_strip.multicam_source

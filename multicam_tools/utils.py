@@ -1,5 +1,12 @@
 import bpy
 
+def get_full_data_path(bpy_obj):
+    return repr(bpy_obj)
+    
+def get_bpy_obj_from_data_path(data_path):
+    ## TODO: this is hackish and insecure
+    return eval(data_path)
+    
 def get_active_strip(context=None):
     if context is None:
         context = bpy.context
