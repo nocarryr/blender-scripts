@@ -149,12 +149,23 @@ class DummyContext(object):
 
 class MultiCamFaderOpsProperties(bpy.types.PropertyGroup):
     def on_end_frame_update(self, context):
-        start = self.get_start_frame(context)
+        fade = self.get_fade_in_range(context.scene)
+        if fade is not None:
+            start = fade.start_frame
+        else:
+            start = self.get_start_frame(context)
         duration = self.end_frame - start
         if duration == self.frame_duration:
             return
         self.frame_duration = duration
     def on_frame_duration_update(self, context):
+        if isinstance(context, bpy.types.Scene):
+            scene = context
+        else:
+            scene = context.scene
+        fade = self.get_fade_in_range(scene)
+        if fade is not None:
+            return
         start = self.get_start_frame(context)
         end = start + self.frame_duration
         if end == self.end_frame:
@@ -202,7 +213,29 @@ class MultiCamFaderOpsProperties(bpy.types.PropertyGroup):
         if bpy.context.screen.is_animation_playing:
             return
         prop = scene.multicam_fader_ops_properties
-        prop.on_frame_duration_update(scene)
+        r = prop.update_from_fader_props(scene)
+        if not r:
+            prop._start_frame = None
+            prop.on_frame_duration_update(scene)
+    def get_fade_in_range(self, scene):
+        strip = scene.sequence_editor.active_strip
+        if strip is None:
+            return
+        if strip.type != 'MULTICAM':
+            return
+        self.start_source = strip.multicam_source
+        prop = MultiCamFaderProperties.get_for_strip(strip)
+        if prop is None:
+            return
+        return prop.get_fade_in_range(scene.frame_current_final)
+    def update_from_fader_props(self, scene):
+        fade = self.get_fade_in_range(scene)
+        if fade is None:
+            return False
+        self.destination_source = fade.next_source
+        self.end_frame = fade.end_frame
+        return True
+        
 #    def get_fade_props_action_group(self, mc_strip):
 #        scene = mc_strip.id_data
 #        action = scene.animation_data.action

@@ -20,6 +20,7 @@ class MultiCamPanel(bpy.types.Panel, MultiCamContext):
             box = row.box()
             box.label(text='Multicam Fader')
             col = box.column()
+            col.prop(ops_props, 'start_source')
             col.prop(ops_props, 'destination_source')
             col.prop(ops_props, 'end_frame')
             col.prop(ops_props, 'frame_duration')
