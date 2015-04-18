@@ -2,17 +2,78 @@ import bpy
 from bpy.app.handlers import persistent
 from bpy.props import (IntProperty, 
                        FloatProperty, 
+                       BoolProperty, 
+                       StringProperty, 
                        PointerProperty, 
                        CollectionProperty)
 from . import utils
 from .utils import MultiCamContext
 from .multicam import MultiCam
     
+class MultiCamStrip(bpy.types.PropertyGroup):
+    channel = IntProperty()
+    strip_data_path = StringProperty()
+    is_start_source = BoolProperty()
+    is_next_source = BoolProperty()
+    needs_blanking = BoolProperty()
+    def get_parent_prop(self):
+        data_path = '.'.join(self.path_from_id().split('.')[:-1])
+        return self.id_data.path_resolve(data_path)
+    def get_multicam_strip(self):
+        return self.get_parent_prop.get_multicam_strip()
+    def get_my_strip(self):
+        scene = self.id_data
+        if self.strip_data_path:
+            try:
+                strip = scene.path_resolve(self.strip_data_path)
+            except ValueError:
+                self.strip_data_path = ''
+                strip = None
+        if strip is not None:
+            return strip
+        for strip in scene.sequence_editor.sequences:
+            if strip.channel == self.channel:
+                data_path = strip.path_from_id()
+                if self.strip_data_path != data_path:
+                    self.strip_data_path = data_path
+                return strip
+    def update_flags(self):
+        fade = self.get_parent_prop()
+        d = {}
+        d['is_start_source'] = fade.start_source == self.channel
+        d['is_next_source'] = fade.next_source == self.channel
+        if True in d.values():
+            d['needs_blanking'] = False
+        else:
+            d['needs_blanking'] = self.channel > fade.start_source or self.channel > fade.next_source
+        changed = False
+        for key, val in d.items():
+            if getattr(self, key) == val:
+                continue
+            setattr(self, key, val)
+            changed = True
+        if changed:
+            self.update_keyframes()
+    def update_keyframes(self):
+        pass
+    
+    
+    
+    
+    
 class MultiCamFaderFade(bpy.types.PropertyGroup):
-    start_frame = FloatProperty()
-    end_frame = FloatProperty()
-    start_source = IntProperty(name='Start Source')
-    next_source = IntProperty(name='Next Source')
+    @classmethod
+    def register(cls):
+        cls.strips = CollectionProperty(type=MultiCamStrip)
+        cls.start_frame = FloatProperty()
+        cls.end_frame = FloatProperty()
+        cls.start_source = IntProperty(name='Start Source')
+        cls.next_source = IntProperty(name='Next Source')
+    def get_parent_prop(self):
+        data_path = '.'.join(self.path_from_id().split('.')[:-1])
+        return self.id_data.path_resolve(data_path)
+    def get_multicam_strip(self):
+        return self.get_parent_prop().get_multicam_strip()
     def update_values(self, **kwargs):
         start_frame = kwargs.get('start_frame')
         if start_frame is not None:
@@ -21,7 +82,18 @@ class MultiCamFaderFade(bpy.types.PropertyGroup):
                 self.name = str(start_frame)
         for key, val in kwargs.items():
             setattr(self, key, val)
-    
+        self.update_strips()
+    def update_strips(self):
+        mc_strip = self.get_multicam_strip()
+        for channel in range(1, mc_strip.channel):
+            key = str(channel)
+            fade_strip = self.strips.get(key)
+            if fade_strip is None:
+                fade_strip = self.strips.add()
+                fade_strip.name = key
+                fade_strip.channel = channel
+            fade_strip.update_flags()
+        
 class MultiCamFaderProperties(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
@@ -81,13 +153,15 @@ class MultiCamFaderProperties(bpy.types.PropertyGroup):
             prop = scene.multicam_fader_properties.add()
             prop.name = data_path
         return prop, created
+    def get_multicam_strip(self):
+        return self.id_data.path_resolve(self.name)
     def set_keyframes_from_fade(self, fade):
         self.start_source = fade.start_source
         self.next_source = fade.next_source
         self.fade_position = 0.
         data_path = self.path_from_id()
         scene = self.id_data
-        mc_strip = scene.path_resolve(self.name)
+        mc_strip = self.get_multicam_strip()
         attrs = ['start_source', 'next_source', 'fade_position']
         for attr in attrs:
             scene.keyframe_insert(data_path='.'.join([data_path, attr]), 
@@ -113,6 +187,7 @@ class MultiCamFaderProperties(bpy.types.PropertyGroup):
         fade.end_frame = end_frame
         fade.start_source = start_source
         fade.next_source = next_source
+        fade.update_strips()
         self.set_keyframes_from_fade(fade)
         return fade
     def get_fade(self, start_frame):
@@ -269,10 +344,15 @@ class MultiCamFader(bpy.types.Operator, MultiCamContext):
         fade_props, created = MultiCamFaderProperties.get_or_create(mc_strip=mc_strip)
         ops_props = context.scene.multicam_fader_ops_properties
         start_frame = self.get_start_frame(context)
-        fade = fade_props.add_fade(start_frame=start_frame, 
-                                   end_frame=ops_props.end_frame, 
-                                   start_source=mc_strip.multicam_source, 
-                                   next_source=ops_props.destination_source)
+        fade_kwargs = dict(start_frame=start_frame, 
+                           end_frame=ops_props.end_frame, 
+                           start_source=mc_strip.multicam_source, 
+                           next_source=ops_props.destination_source)
+        fade = fade_props.get_fade_in_range(context.scene)
+        if fade is not None:
+            fade_props.update_fade(fade, **fade_kwargs)
+        else:
+            fade = fade_props.add_fade(**fade_kwargs)
 #        fade_props.start_source = mc_strip.multicam_source
 #        fade_props.next_source = ops_props.destination_source
 #        fade_props.fade_position = 0.
@@ -295,6 +375,7 @@ class MultiCamFader(bpy.types.Operator, MultiCamContext):
         
     
 def register():
+    bpy.utils.register_class(MultiCamStrip)
     bpy.utils.register_class(MultiCamFaderFade)
     bpy.utils.register_class(MultiCamFaderProperties)
     bpy.utils.register_class(MultiCamFaderCreateProps)
@@ -312,3 +393,4 @@ def unregister():
     bpy.utils.unregister_class(MultiCamFaderCreateProps)
     bpy.utils.unregister_class(MultiCamFaderProperties)
     bpy.utils.unregister_class(MultiCamFaderFade)
+    bpy.utils.unregister_class(MultiCamStrip)
