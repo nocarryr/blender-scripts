@@ -267,6 +267,8 @@ class MultiCamFaderProperties(bpy.types.PropertyGroup):
     def get_fade_in_range(self, frame):
         if not len(self.fades):
             return None
+        if isinstance(frame, bpy.types.Scene):
+            frame = frame.frame_current_final
         keys = [key for key in self.fades.keys() if frame >= float(key)]
         if not len(keys):
             return None
