@@ -37,6 +37,48 @@ class MultiCamStrip(bpy.types.PropertyGroup):
                 if self.strip_data_path != data_path:
                     self.strip_data_path = data_path
                 return strip
+    def get_fcurve(self):
+        scene = self.id_data
+        action = scene.animation_data.action
+        if action is None:
+            return None
+        strip = self.get_my_strip()
+        data_path = '.'.join([strip.path_from_id(), 'blend_alpha'])
+        for fc in action.fcurves:
+            if data_path in fc.data_path:
+                return fc
+    def get_keyframe(self, frame):
+        fcurve = self.get_fcurve()
+        if fcurve is None:
+            return None
+        for kf in fcurve.keyframe_points:
+            if kf.co[0] == frame:
+                return kf
+        return None
+    def remove_old_keyframes(self, start_frame, end_frame):
+        fcurve = self.get_fcurve()
+        if fcurve is None:
+            return
+        to_remove = set()
+        for kf in fcurve.keyframe_points:
+            if kf.co[0] in [start_frame, end_frame]:
+                to_remove.add(kf)
+        for kf in to_remove:
+            fcurve.keyframe_points.remove(kf)
+        to_remove.clear()
+    def add_keyframe(self, frame, value, interpolation=None):
+        if interpolation is None:
+            interpolation = 'CONSTANT'
+        strip = self.get_my_strip()
+        fcurve = self.get_fcurve()
+        if fcurve is None:
+            strip.keyframe_insert('blend_alpha', frame=frame)
+            kf = self.get_keyframe(frame)
+            kf.co[1] = value
+        else:
+            kf = fcurve.keyframe_points.insert(frame, value)
+        kf.interpolation = interpolation
+        return kf
     def update_flags(self):
         fade = self.get_parent_prop()
         d = {}
@@ -55,9 +97,24 @@ class MultiCamStrip(bpy.types.PropertyGroup):
         if changed:
             self.update_keyframes()
     def update_keyframes(self):
-        pass
-    
-    
+        fade = self.get_parent_prop()
+        kf_data = {fade.start_frame:{}, fade.end_frame:{}}
+        if self.is_start_source:
+            kf_data[fade.start_frame]['value'] = 0.
+            kf_data[fade.start_frame]['interpolation'] = 'BEZIER'
+            kf_data[fade.end_frame]['value'] = 1.
+        elif self.is_end_source:
+            kf_data[fade.start_frame]['value'] = 1.
+            kf_data[fade.start_frame]['interpolation'] = 'BEZIER'
+            kf_data[fade.end_frame]['value'] = 0.
+        elif self.needs_blanking:
+            kf_data[fade.start_frame]['value'] = 0.
+            kf_data[fade.end_frame]['value'] = 0.
+        else:
+            return
+        for frame, data in kf_data.items():
+            self.insert_keyframe(frame, data['value'], data.get('interpolation'))
+            
     
     
     
