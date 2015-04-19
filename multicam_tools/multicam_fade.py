@@ -86,7 +86,20 @@ class MultiCamStrip(bpy.types.PropertyGroup):
             changed = True
         if changed:
             self.update_keyframes()
+    def ensure_start_keyframe(self):
+        fade_props = self.get_parent_prop().get_parent_prop()
+        keys = [float(key) for key in fade_props.fades.keys()]
+        first_frame = min(keys)
+        self.add_keyframe(first_frame - 1., 1.)
+    def set_end_keyframe(self):
+        fade = self.get_parent_prop()
+        fade_props = fade.get_parent_prop()
+        other_fade = fade_props.get_fade_in_range(fade.end_frame + 1.)
+        if other_fade is not None:
+            return
+        self.add_keyframe(fade.end_frame + 1., 1.)
     def update_keyframes(self):
+        self.ensure_start_keyframe()
         fade = self.get_parent_prop()
         kf_data = {fade.start_frame:{}, fade.end_frame:{}}
         if self.is_start_source:
@@ -100,6 +113,7 @@ class MultiCamStrip(bpy.types.PropertyGroup):
         elif self.needs_blanking:
             kf_data[fade.start_frame]['value'] = 0.
             kf_data[fade.end_frame]['value'] = 0.
+            self.set_end_keyframe()
         else:
             return
         for frame, data in kf_data.items():
