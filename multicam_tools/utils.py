@@ -23,7 +23,7 @@ def create_fcurve(scene, data_path, action_group=''):
     return action.fcurves.new(data_path, action_group=action_group)
     
 def get_or_create_fcurve(scene, data_path, action_group=''):
-    fc = get_fcurve(data_path)
+    fc = get_fcurve(scene, data_path)
     if fc is not None:
         return fc
     return create_fcurve(scene, data_path, action_group)

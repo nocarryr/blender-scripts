@@ -29,6 +29,8 @@ class MultiCamStrip(bpy.types.PropertyGroup):
             except ValueError:
                 self.strip_data_path = ''
                 strip = None
+        else:
+            strip = None
         if strip is not None:
             return strip
         for strip in scene.sequence_editor.sequences:
@@ -91,7 +93,7 @@ class MultiCamStrip(bpy.types.PropertyGroup):
             kf_data[fade.start_frame]['value'] = 0.
             kf_data[fade.start_frame]['interpolation'] = 'BEZIER'
             kf_data[fade.end_frame]['value'] = 1.
-        elif self.is_end_source:
+        elif self.is_next_source:
             kf_data[fade.start_frame]['value'] = 1.
             kf_data[fade.start_frame]['interpolation'] = 'BEZIER'
             kf_data[fade.end_frame]['value'] = 0.
@@ -101,7 +103,7 @@ class MultiCamStrip(bpy.types.PropertyGroup):
         else:
             return
         for frame, data in kf_data.items():
-            self.insert_keyframe(frame, data['value'], data.get('interpolation'))
+            self.add_keyframe(frame, data['value'], data.get('interpolation'))
             
     
     
@@ -398,24 +400,6 @@ class MultiCamFader(bpy.types.Operator, MultiCamContext):
             fade_props.update_fade(fade, **fade_kwargs)
         else:
             fade = fade_props.add_fade(**fade_kwargs)
-#        fade_props.start_source = mc_strip.multicam_source
-#        fade_props.next_source = ops_props.destination_source
-#        fade_props.fade_position = 0.
-#        data_path = fade_props.path_from_id()
-#        attrs = ['start_source', 'next_source', 'fade_position']
-#        for attr in attrs:
-#            context.scene.keyframe_insert(data_path='.'.join([data_path, attr]), 
-#                                          frame=start_frame, 
-#                                          group='Multicam Fader (%s)' % (mc_strip.name))
-#        fade_props.fade_position = 1.
-#        for attr in attrs:
-#            context.scene.keyframe_insert(data_path='.'.join([data_path, attr]), 
-#                                          frame=ops_props.end_frame, 
-#                                          group='Multicam Fader (%s)' % (mc_strip.name))
-        multicam = MultiCam(blend_obj=mc_strip, context=context)
-        multicam.insert_keyframe(start_frame, mc_strip.channel - 1, interpolation='CONSTANT')
-        multicam.insert_keyframe(fade.end_frame, fade.next_source, interpolation='CONSTANT')
-        multicam.build_fade(fade=None, frame=start_frame)
         return {'FINISHED'}
         
     
