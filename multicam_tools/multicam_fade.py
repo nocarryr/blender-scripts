@@ -141,6 +141,8 @@ class MultiCamFaderFade(bpy.types.PropertyGroup):
     def get_multicam_strip(self):
         return self.get_parent_prop().get_multicam_strip()
     def update_values(self, **kwargs):
+        old_start = float(self.start_frame)
+        old_end = float(self.end_frame)
         start_frame = kwargs.get('start_frame')
         if start_frame is not None:
             start_frame = float(start_frame)
@@ -148,6 +150,7 @@ class MultiCamFaderFade(bpy.types.PropertyGroup):
                 self.name = str(start_frame)
         for key, val in kwargs.items():
             setattr(self, key, val)
+        self.update_multicam_strip(old_start, old_end)
         self.update_strips()
     def update_strips(self):
         mc_strip = self.get_multicam_strip()
@@ -159,6 +162,42 @@ class MultiCamFaderFade(bpy.types.PropertyGroup):
                 fade_strip.name = key
                 fade_strip.channel = channel
             fade_strip.update_flags()
+    def update_multicam_strip(self, old_start=None, old_end=None):
+        scene = self.id_data
+        mc_strip = self.get_multicam_strip()
+        fade_keys = [float(key) for key in self.get_parent_prop().fades.keys()]
+        def get_keyframe(frame, fcurve):
+            for kf in fcurve.keyframe_points:
+                if kf[0] == frame:
+                    return kf
+        def set_alpha():
+            data_path = '.'.join([mc_strip.path_from_id(), 'blend_alpha'])
+            fcurve = utils.get_or_create_fcurve(scene, data_path)
+            if old_start is not None:
+                kf = get_keyframe(old_start, fcurve)
+                if kf is not None:
+                    fcurve.keyframe_points.remove(kf)
+            if old_end is not None:
+                kf = get_keyframe(old_end, fcurve)
+                if kf is not None:
+                    fcurve.keyframe_points.remove(kf)
+            fcurve.keyframe_points.insert(min(fade_keys), 1.)
+            fcurve.keyframe_points.insert(self.start_frame, 0.)
+            fcurve.keyframe_points.insert(self.end_frame, 1.)
+        def set_source():
+            data_path = '.'.join([mc_strip.path_from_id(), 'blend_alpha'])
+            fcurve = utils.get_or_create_fcurve(scene, data_path)
+            fcurve.keyframe_points.insert(self.end_frame, self.next_source)
+            if old_start is not None:
+                kf = get_keyframe(old_start, fcurve)
+                if kf is not None:
+                    fcurve.keyframe_points.remove(kf)
+            if old_end is not None:
+                kf = get_keyframe(old_end, fcurve)
+                if kf is not None:
+                    fcurve.keyframe_points.remove(kf)
+        set_alpha()
+        set_source()
         
 class MultiCamFaderProperties(bpy.types.PropertyGroup):
     @classmethod
