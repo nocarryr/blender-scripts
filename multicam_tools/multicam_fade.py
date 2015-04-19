@@ -44,21 +44,15 @@ class MultiCamStrip(bpy.types.PropertyGroup):
             return None
         strip = self.get_my_strip()
         data_path = '.'.join([strip.path_from_id(), 'blend_alpha'])
-        for fc in action.fcurves:
-            if data_path in fc.data_path:
-                return fc
+        return utils.get_or_create_fcurve(scene, data_path)
     def get_keyframe(self, frame):
         fcurve = self.get_fcurve()
-        if fcurve is None:
-            return None
         for kf in fcurve.keyframe_points:
             if kf.co[0] == frame:
                 return kf
         return None
     def remove_old_keyframes(self, start_frame, end_frame):
         fcurve = self.get_fcurve()
-        if fcurve is None:
-            return
         to_remove = set()
         for kf in fcurve.keyframe_points:
             if kf.co[0] in [start_frame, end_frame]:
@@ -69,14 +63,8 @@ class MultiCamStrip(bpy.types.PropertyGroup):
     def add_keyframe(self, frame, value, interpolation=None):
         if interpolation is None:
             interpolation = 'CONSTANT'
-        strip = self.get_my_strip()
         fcurve = self.get_fcurve()
-        if fcurve is None:
-            strip.keyframe_insert('blend_alpha', frame=frame)
-            kf = self.get_keyframe(frame)
-            kf.co[1] = value
-        else:
-            kf = fcurve.keyframe_points.insert(frame, value)
+        kf = fcurve.keyframe_points.insert(frame, value)
         kf.interpolation = interpolation
         return kf
     def update_flags(self):
