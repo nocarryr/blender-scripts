@@ -103,13 +103,22 @@ class MultiCamStrip(bpy.types.PropertyGroup):
         fade = self.get_parent_prop()
         kf_data = {fade.start_frame:{}, fade.end_frame:{}}
         if self.is_start_source:
-            kf_data[fade.start_frame]['value'] = 0.
+            kf_data[fade.start_frame]['interpolation'] = 'BEZIER'
+            if self.channel > fade.next_source:
+                kf_data[fade.start_frame]['value'] = 1.
+                kf_data[fade.end_frame]['value'] = 0.
+            else:
+                kf_data[fade.start_frame]['value'] = 1.
+                kf_data[fade.end_frame]['value'] = 1.
+        elif self.is_next_source:
+            if self.channel > fade.start_source:
+                kf_data[fade.start_frame]['value'] = 0.
+                kf_data[fade.end_frame]['value'] = 1.
+            else:
+                kf_data[fade.start_frame]['value'] = 1.
+                kf_data[fade.end_frame]['value'] = 1.
             kf_data[fade.start_frame]['interpolation'] = 'BEZIER'
             kf_data[fade.end_frame]['value'] = 1.
-        elif self.is_next_source:
-            kf_data[fade.start_frame]['value'] = 1.
-            kf_data[fade.start_frame]['interpolation'] = 'BEZIER'
-            kf_data[fade.end_frame]['value'] = 0.
         elif self.needs_blanking:
             kf_data[fade.start_frame]['value'] = 0.
             kf_data[fade.end_frame]['value'] = 0.
