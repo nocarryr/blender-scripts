@@ -8,7 +8,6 @@ from bpy.props import (IntProperty,
                        CollectionProperty)
 from . import utils
 from .utils import MultiCamContext
-from .multicam import MultiCam
     
 class MultiCamStrip(bpy.types.PropertyGroup):
     channel = IntProperty()
@@ -127,10 +126,7 @@ class MultiCamStrip(bpy.types.PropertyGroup):
             return
         for frame, data in kf_data.items():
             self.add_keyframe(frame, data['value'], data.get('interpolation'))
-            
-    
-    
-    
+        
 class MultiCamFaderFade(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
@@ -289,10 +285,6 @@ class MultiCamFaderCreateProps(bpy.types.Operator, MultiCamContext):
         mc_strip = self.get_strip(context)
         MultiCamFaderProperties.get_or_create(mc_strip=mc_strip)
         return {'FINISHED'}
-    
-class DummyContext(object):
-    def __init__(self, scene):
-        self.scene = scene
 
 class MultiCamFaderOpsProperties(bpy.types.PropertyGroup):
     def on_end_frame_update(self, context):
@@ -382,27 +374,6 @@ class MultiCamFaderOpsProperties(bpy.types.PropertyGroup):
         self.destination_source = fade.next_source
         self.end_frame = fade.end_frame
         return True
-        
-#    def get_fade_props_action_group(self, mc_strip):
-#        scene = mc_strip.id_data
-#        action = scene.animation_data.action
-#        group_name = 'Multicam Fader (%s)' % (mc_strip.name)
-#        return action.groups.get(group_name)
-#    def get_fade_props_fcurves(self, **kwargs):
-#        action_group = kwargs.get('action_group')
-#        if action_group is None:
-#            mc_strip = kwargs.get('mc_strip')
-#            action_group = self.get_fade_props_action_group(mc_strip)
-#        fcurves = {}
-#        for fc in action_group.channels:
-#            key = fc.data_path.split('.')[-1]
-#            fcurves[key] = fc
-#        return fcurves
-#    def get_fade_props_keyframes(self, **kwargs):
-#        fcurves = kwargs.get('fcurves')
-#        if fcurves is None:
-#            fcurves = self.get_fade_props_fcurves(**kwargs)
-#        return utils.get_keyframe_dict(fcurves=fcurves)
     
 class MultiCamFader(bpy.types.Operator, MultiCamContext):
     bl_idname = 'scene.multicam_fader'
