@@ -3,9 +3,9 @@ import bpy
 bl_info = {
     "name": "Multicam Tools",
     "author": "Matt Reid",
-    "version": (0, 0, 1),
+    "version": (0, 0, 2),
     "blender": (2, 74, 0),
-    "description": "", 
+    "description": "Useful things for working with Multicam Sequences", 
     "category":"Animation", 
     "warning": "",
 }
