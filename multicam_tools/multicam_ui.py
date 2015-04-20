@@ -22,6 +22,7 @@ class MultiCamPanel(bpy.types.Panel, MultiCamContext):
             col = box.column()
             col.prop(ops_props, 'start_source')
             col.prop(ops_props, 'destination_source')
+            col.prop(ops_props, 'start_frame')
             col.prop(ops_props, 'end_frame')
             col.prop(ops_props, 'frame_duration')
             box.operator('scene.multicam_fader', text='Set Auto Fade')

@@ -29,11 +29,7 @@ def get_or_create_fcurve(scene, data_path, action_group=''):
     return create_fcurve(scene, data_path, action_group)
     
 def set_keyframe(fcurve, frame, value, interpolation='CONSTANT'):
-    options = set()
-    kf = get_keyframe(fcurve, frame)
-    if kf is not None:
-        options.add('REPLACE')
-    kf = fcurve.keyframe_points.insert(frame, value, options=options)
+    kf = fcurve.keyframe_points.insert(frame, value)
     kf.interpolation = interpolation
     return kf
     
