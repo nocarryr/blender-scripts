@@ -14,12 +14,16 @@ def get_active_strip(context=None):
     
 def get_fcurve(scene, data_path):
     action = scene.animation_data.action
+    if action is None:
+        return None
     for fc in action.fcurves:
         if fc.data_path == data_path:
             return fc
         
 def create_fcurve(scene, data_path, action_group=''):
     action = scene.animation_data.action
+    if action is None:
+        return None
     return action.fcurves.new(data_path, action_group=action_group)
     
 def get_or_create_fcurve(scene, data_path, action_group=''):
