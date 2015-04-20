@@ -27,6 +27,28 @@ def get_or_create_fcurve(scene, data_path, action_group=''):
     if fc is not None:
         return fc
     return create_fcurve(scene, data_path, action_group)
+    
+def set_keyframe(fcurve, frame, value, interpolation='CONSTANT'):
+    options = set()
+    kf = get_keyframe(fcurve, frame)
+    if kf is not None:
+        options.add('REPLACE')
+    kf = fcurve.keyframe_points.insert(frame, value, options=options)
+    kf.interpolation = interpolation
+    return kf
+    
+def get_keyframe(fcurve, *frames):
+    if len(frames) > 1:
+        keyframes = []
+    else:
+        keyframes = None
+    for kf in fcurve.keyframe_points:
+        if kf.co[0] in frames:
+            if keyframes is not None:
+                keyframes.append(kf)
+            else:
+                return kf
+    return keyframes
 
 def iter_keyframes(**kwargs):
     fcurves = kwargs.get('fcurves')

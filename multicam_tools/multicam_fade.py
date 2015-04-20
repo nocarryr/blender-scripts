@@ -48,26 +48,17 @@ class MultiCamStrip(bpy.types.PropertyGroup):
         return utils.get_or_create_fcurve(scene, data_path)
     def get_keyframe(self, frame):
         fcurve = self.get_fcurve()
-        for kf in fcurve.keyframe_points:
-            if kf.co[0] == frame:
-                return kf
-        return None
+        return utils.get_keyframe(fcurve, frame)
     def remove_old_keyframes(self, start_frame, end_frame):
         fcurve = self.get_fcurve()
-        to_remove = set()
-        for kf in fcurve.keyframe_points:
-            if kf.co[0] in [start_frame, end_frame]:
-                to_remove.add(kf)
+        to_remove = utils.get_keyframe(fcurve, start_frame, end_frame)
         for kf in to_remove:
             fcurve.keyframe_points.remove(kf)
-        to_remove.clear()
     def add_keyframe(self, frame, value, interpolation=None):
         if interpolation is None:
             interpolation = 'CONSTANT'
         fcurve = self.get_fcurve()
-        kf = fcurve.keyframe_points.insert(frame, value)
-        kf.interpolation = interpolation
-        return kf
+        return utils.set_keyframe(fcurve, frame, value, interpolation)
     def update_flags(self):
         fade = self.get_parent_prop()
         d = {}
@@ -165,39 +156,31 @@ class MultiCamFaderFade(bpy.types.PropertyGroup):
     def update_multicam_strip(self, old_start=None, old_end=None):
         scene = self.id_data
         mc_strip = self.get_multicam_strip()
-        def get_keyframe(frame, fcurve):
-            for kf in fcurve.keyframe_points:
-                if kf.co[0] == frame:
-                    return kf
-        def add_keyframe(fcurve, frame, value):
-            kf = fcurve.keyframe_points.insert(frame, value)
-            kf.interpolation = 'CONSTANT'
-            return kf
         def set_alpha():
             data_path = '.'.join([mc_strip.path_from_id(), 'mute'])
             fcurve = utils.get_or_create_fcurve(scene, data_path)
             if old_start is not None:
-                kf = get_keyframe(old_start, fcurve)
+                kf = utils.get_keyframe(fcurve, old_start)
                 if kf is not None:
                     fcurve.keyframe_points.remove(kf)
             if old_end is not None:
-                kf = get_keyframe(old_end, fcurve)
+                kf = utils.get_keyframe(fcurve, old_end)
                 if kf is not None:
                     fcurve.keyframe_points.remove(kf)
-            add_keyframe(fcurve, mc_strip.frame_start, 0.)
-            add_keyframe(fcurve, self.start_frame, 1.)
-            add_keyframe(fcurve, self.end_frame, 0.)
+            utils.set_keyframe(fcurve, mc_strip.frame_start, 0.)
+            utils.set_keyframe(fcurve, self.start_frame, 1.)
+            utils.set_keyframe(fcurve, self.end_frame, 0.)
         def set_source():
             data_path = '.'.join([mc_strip.path_from_id(), 'multicam_source'])
             fcurve = utils.get_or_create_fcurve(scene, data_path)
-            add_keyframe(fcurve, self.start_frame, self.start_source)
-            add_keyframe(fcurve, self.end_frame, self.next_source)
+            utils.set_keyframe(fcurve, self.start_frame, self.start_source)
+            utils.set_keyframe(fcurve, self.end_frame, self.next_source)
             if old_start is not None:
-                kf = get_keyframe(old_start, fcurve)
+                kf = utils.get_keyframe(fcurve, old_start)
                 if kf is not None:
                     fcurve.keyframe_points.remove(kf)
             if old_end is not None:
-                kf = get_keyframe(old_end, fcurve)
+                kf = utils.get_keyframe(fcurve, old_end)
                 if kf is not None:
                     fcurve.keyframe_points.remove(kf)
         set_alpha()
