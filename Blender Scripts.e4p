@@ -21,6 +21,7 @@
     <Source>multicam_tools/test_blend_script.py</Source>
     <Source>multicam_tools/multicam_fade.py</Source>
     <Source>multicam_tools/utils.py</Source>
+    <Source>multicam_tools/multicam_import_export.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

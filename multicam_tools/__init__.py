@@ -22,19 +22,23 @@ def register():
     from . import (
         multicam, 
         multicam_fade, 
+        multicam_import_export, 
         multicam_ui)
     #bpy.utils.register_module(__name__)
     multicam.register()
     multicam_fade.register()
+    multicam_import_export.register()
     multicam_ui.register()
     
 def unregister():
     from . import (
         multicam, 
         multicam_fade, 
+        multicam_import_export, 
         multicam_ui)
     multicam_ui.unregister()
     multicam_fade.unregister()
+    multicam_import_export.unregister()
     multicam.unregister()
     #bpy.utils.unregister_module(__name__)
     

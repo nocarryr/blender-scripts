@@ -167,7 +167,14 @@ class MultiCamFaderFade(bpy.types.PropertyGroup):
                 kf = utils.get_keyframe(fcurve, old_end)
                 if kf is not None:
                     fcurve.keyframe_points.remove(kf)
-            utils.set_keyframe(fcurve, mc_strip.frame_start, 0.)
+            if fcurve is None:
+                mc_strip.keyframe_insert('mute', frame=mc_strip.frame_start)
+                fcurve = utils.get_fcurve(scene, data_path)
+                kf = utils.get_keyframe(fcurve, mc_strip.frame_start)
+                kf.co[1] = 0.
+                kf.interpolation = 'CONSTANT'
+            else:
+                utils.set_keyframe(fcurve, mc_strip.frame_start, 0.)
             utils.set_keyframe(fcurve, self.start_frame, 1.)
             utils.set_keyframe(fcurve, self.end_frame, 0.)
         def set_source():
@@ -185,6 +192,9 @@ class MultiCamFaderFade(bpy.types.PropertyGroup):
                     fcurve.keyframe_points.remove(kf)
         set_alpha()
         set_source()
+    def serialize(self):
+        attrs = ['start_source', 'next_source', 'start_frame', 'end_frame']
+        return dict(zip(attrs, [getattr(self, attr) for attr in attrs]))
         
 class MultiCamFaderProperties(bpy.types.PropertyGroup):
     @classmethod
@@ -316,6 +326,14 @@ class MultiCamFaderProperties(bpy.types.PropertyGroup):
         old_end = fade.end_frame
         fade.update_values(**kwargs)
         self.set_keyframes_from_fade(fade, old_start, old_end)
+    def remove_fade(self, fade):
+        ## TODO: actually remove it
+        pass
+    def serialize(self):
+        d = {}
+        for key, fade in self.fades.items():
+            d[key] = fade.serialize()
+        return d
         
     
 class MultiCamFaderCreateProps(bpy.types.Operator, MultiCamContext):

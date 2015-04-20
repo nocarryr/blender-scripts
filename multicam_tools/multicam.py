@@ -1,7 +1,4 @@
 import bpy
-from bpy_extras.io_utils import ExportHelper, ImportHelper
-
-import json
 
 from .utils import MultiCamContext
 
@@ -310,45 +307,9 @@ class MultiCamBakeStrips(bpy.types.Operator, MultiCamContext):
                       context=context)
         mc.bake_strips()
         return {'FINISHED'}
-        
-class MultiCamExport(bpy.types.Operator, ExportHelper, MultiCamContext):
-    bl_idname = 'sequencer.export_multicam'
-    bl_label = 'Export Multicam'
-    filename_ext = '.json'
-    def execute(self, context):
-        mc = MultiCam(blend_obj=self.get_strip(context), 
-                      context=context)
-        mc.mc_fader.build_fades()
-        data = {'cuts':{}}
-        for frame, value in mc.iter_keyframes():
-            data['cuts'][frame] = value
-        data['fades'] = mc.mc_fader.fades
-        with open(self.filepath, 'w') as f:
-            f.write(json.dumps(data, indent=2))
-        return {'FINISHED'}
-        
-class MultiCamImport(bpy.types.Operator, ImportHelper, MultiCamContext):
-    bl_idname = 'sequencer.import_multicam'
-    bl_label = 'Import Multicam'
-    filename_ext = '.json'
-    def execute(self, context):
-        with open(self.filepath, 'r') as f:
-            data = json.loads(f.read())
-        mc = MultiCam(blend_obj=self.get_strip(context), 
-                      context=context)
-        mc.remove_fcurve()
-        for frame, value in data['cuts'].items():
-            mc.insert_keyframe(float(frame), value, interpolation='CONSTANT')
-        return {'FINISHED'}
     
 def register():
     bpy.utils.register_class(MultiCamBakeStrips)
-    bpy.utils.register_class(MultiCamExport)
-    bpy.utils.register_class(MultiCamImport)
-    
     
 def unregister():
     bpy.utils.unregister_class(MultiCamBakeStrips)
-    bpy.utils.unregister_class(MultiCamExport)
-    bpy.utils.unregister_class(MultiCamImport)
-
