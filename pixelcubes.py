@@ -188,13 +188,22 @@ class PixelGeneratorProps(bpy.types.PropertyGroup):
 class PixelGenerator(bpy.types.Operator):
     bl_idname = 'image.pixel_generator'
     bl_label = 'Pixel Generator'
-    def remove_old_pixels(self, pixel_image):
-        return
-        for pixel in pixel_image.pixels:
-            ## TODO: figure out how to get the object
-            #obj = ????
-            bpy.ops.object.delete(obj)
-        pixel_image.pixels.clear()
+    def remove_old_data(self, base_obj, pixel_image_ref):
+        pixel_image = pixel_image_ref.get_pixel_image()
+        scene = pixel_image_ref.id_data
+        for pixel_ref in pixel_image.pixel_refs.values():
+            try:
+                obj = pixel_ref.get_object(data=scene)
+            except KeyError:
+                obj = None
+            if obj and obj is not base_obj:
+                bpy.ops.object.select_all(action='DESELECT')
+                obj.select = True
+                bpy.ops.object.delete()
+            bpy.ops.object.delete()
+        pixel_image.pixel_refs.clear()
+        i = scene.pixel_generator_props.pixel_image_refs.find(pixel_image_ref.name)
+        scene.pixel_generator_props.pixel_image_refs.remove(i)
     def generate_pixels(self, context, image):
         props = context.scene.pixel_generator_props
         if props.use_active_object:
@@ -202,6 +211,7 @@ class PixelGenerator(bpy.types.Operator):
         else:
             bpy.ops.mesh.primitive_cube_add(location=(0., 0., 0.))
             obj = context.active_object
+        obj.select = True
         image_size = image.size
         #pixel_scale = [1, 1]#self.pixel_image_scale
         #pixel_size = [i // px_scale for i, px_scale in zip(image_size, pixel_scale)]
