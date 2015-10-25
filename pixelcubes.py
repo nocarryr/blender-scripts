@@ -43,24 +43,61 @@ class Pixel(bpy.types.PropertyGroup):
         return self.position[0]
     def set_x(self, value):
         self.position[0] = value
+    x = FloatProperty(name='x', get=get_x, set=set_x)
     def get_y(self):
         return self.position[1]
     def set_y(self, value):
         self.position[1] = value
+    y = FloatProperty(name='y', get=get_y, set=set_y)
+    def set_material_color(self, context=None):
+        if not self.material_name:
+            return
+        material = self.id_data.data.materials[self.material_name]
+        if material.use_nodes:
+            bsdf = material.node_tree.nodes['Diffuse BSDF']
+            bsdf.inputs[0].default_value = self.color
+        else:
+            material.diffuse_color = self.color[:3]
+            material.alpha = self.color[3]
+    color = FloatVectorProperty(
+        name='color',
+        default=[0., 0., 0., 0.],
+        size=4,
+        subtype='COLOR',
+        update=set_material_color,
+    )
     @classmethod
     def register(cls):
         bpy.types.Object.pixel_data = PointerProperty(type=cls)
         cls.pixel_image_name = StringProperty()
+        cls.material_name = StringProperty()
         cls.position = FloatVectorProperty(size=2)
-        cls.x = FloatProperty(name='x', get=cls.get_x, set=cls.set_x)
-        cls.y = FloatProperty(name='y', get=cls.get_y, set=cls.set_y)
-        cls.color = FloatVectorProperty(name='Color', size=4, subtype='COLOR')
-    def make_material(self):
-        pass
-    def update_color(self, image=None):
+    def make_material(self, context):
+        data = bpy.data
+        self.material_name = '%s-%dx%d' % (self.pixel_image_name, self.x, self.y)
+        if self.material_name in data.materials:
+            material = data.materials[self.material_name]
+        else:
+            material = data.materials.new(self.material_name)
+        if context.scene.render.engine == 'CYCLES':
+            material.use_nodes = True
+            bsdf = material.node_tree.nodes['Diffuse BSDF']
+            bsdf.inputs[0].default_value = self.color
+        else:
+            material.diffuse_color = self.color[:3]
+            material.alpha = self.color[3]
+            material.use_transparency = True
+
+        self.id_data.active_material = material
+    def update_color(self, context=None, image=None):
+        if context is not None:
+            data = context.blend_data
+        else:
+            data = bpy.data
         if image is None:
-            image = bpy.data.images[self.pixel_image_name]
-        i = self.x * self.y
+            image = data.images[self.pixel_image_name]
+        i = int(self.x * self.y)
+        print(i, i+4)
         self.color = image.pixels[i:i+4]
 
 class PixelImage(bpy.types.PropertyGroup):
@@ -131,15 +168,18 @@ class PixelGenerator(bpy.types.Operator):
                 if is_first_obj:
                     is_first_obj = False
                 else:
+                    objdata = obj.data.copy()
                     bpy.ops.object.duplicate()
                     obj = bpy.context.active_object
+                    obj.data = objdata
                 #image_pos = [px * im for px, im in zip(px_pos, image_size)]
                 obj.scale = props.pixel_object_scale
                 obj.location = [x, y, 0]
                 obj.pixel_data.position = [x, y]
-                obj.pixel_data.make_material()
                 obj.pixel_data.pixel_image_name = image.name
-                obj.pixel_data.update_color(image)
+                material = obj.pixel_data.make_material(context)
+                #obj.data.materials.append(material)
+                obj.pixel_data.update_color(context, image)
                 #image.pixel_image.pixels.add(obj.pixel_data)
     def execute(self, context):
         props = context.window_manager.pixel_generator_props
