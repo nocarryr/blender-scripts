@@ -96,7 +96,7 @@ class Pixel(bpy.types.PropertyGroup):
             data = bpy.data
         if image is None:
             image = data.images[self.pixel_image_name]
-        i = int(self.x * self.y)
+        i = int(self.x * self.y * 4)
         print(i, i+4)
         self.color = image.pixels[i:i+4]
 
