@@ -90,14 +90,13 @@ class Pixel(bpy.types.PropertyGroup):
 
         self.id_data.active_material = material
     def update_color(self, context=None, image=None):
-        if context is not None:
-            data = context.blend_data
-        else:
-            data = bpy.data
         if image is None:
-            image = data.images[self.pixel_image_name]
+            if context is not None:
+                data = context.blend_data
+            else:
+                data = bpy.data
+                image = data.images[self.pixel_image_name]
         i = int(self.x * self.y * 4)
-        print(i, i+4)
         self.color = image.pixels[i:i+4]
 
 class PixelImage(bpy.types.PropertyGroup):
@@ -117,12 +116,14 @@ class PixelImage(bpy.types.PropertyGroup):
             name='Pixel Scale',
             size=2,
         )
-    def update_pixels(self):
+    def update_pixels(self, context=None, data=None):
         image = self.id_data
         if image.size == self.original_size:
             image.scale(*[i // self.scale_factor for i in image.size])
-        for pixel in self.pixels:
-            pixel.update_color(image)
+        for pixel_ref in self.pixel_refs.values():
+            pixel = pixel_ref.get_pixel(context, data)
+            pixel.update_color(image=image)
+
 
 class PixelGeneratorProps(bpy.types.PropertyGroup):
     @classmethod
