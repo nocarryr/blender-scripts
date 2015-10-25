@@ -5,6 +5,7 @@
 #----------------------------------------------------------
 
 import bpy
+from bpy.app.handlers import persistent
 from bpy.props import (
     BoolProperty,
     StringProperty,
@@ -277,6 +278,19 @@ def generate_cubes(image_name, scale_factor=16):
 
 #cubify('sprite.png')
 
+#@persistent
+def pixel_cubes_on_frame_change(scene):
+    PixelImageReference.on_frame_change(scene)
+
+def remove_old_handler():
+    for f in bpy.app.handlers.frame_change_pre[:]:
+        if f.__name__ == pixel_cubes_on_frame_change.__name__:
+            bpy.app.handlers.frame_change_pre.remove(f)
+
+def add_handler():
+    remove_old_handler()
+    bpy.app.handlers.frame_change_pre.append(pixel_cubes_on_frame_change)
+
 def register():
     bpy.utils.register_class(PixelReference)
     bpy.utils.register_class(PixelImageReference)
@@ -285,8 +299,10 @@ def register():
     bpy.utils.register_class(PixelGeneratorProps)
     bpy.utils.register_class(PixelGenerator)
     bpy.utils.register_class(PixelGeneratorUi)
+    add_handler()
 
 def unregister():
+    remove_old_handler()
     bpy.utils.unregister_class(PixelGeneratorUi)
     bpy.utils.unregister_class(PixelGenerator)
     bpy.utils.unregister_class(PixelGeneratorProps)
