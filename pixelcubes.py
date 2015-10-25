@@ -132,7 +132,7 @@ class PixelImage(bpy.types.PropertyGroup):
         )
     def update_pixels(self, context=None, data=None):
         image = self.id_data
-        if image.size == self.original_size:
+        if list(image.size) == list(self.original_size):
             image.scale(*[i // self.scale_factor for i in image.size])
         for pixel_ref in self.pixel_refs.values():
             pixel = pixel_ref.get_pixel(context, data)
