@@ -99,13 +99,26 @@ class Pixel(bpy.types.PropertyGroup):
         i = int(self.x * self.y * 4)
         self.color = image.pixels[i:i+4]
 
+class PixelReference(bpy.types.PropertyGroup):
+    name = StringProperty()
+    def get_object(self, context=None, data=None):
+        if data is None:
+            if context is not None:
+                data = context.data
+            else:
+                data = bpy.data
+        return data.objects[self.name]
+    def get_pixel(self, context=None, data=None):
+        obj = self.get_object(context, data)
+        return obj.pixel_data
+
 class PixelImage(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Image.pixel_image = PointerProperty(type=cls)
-        cls.pixels = CollectionProperty(
-            name='Pixels',
-            type=Pixel,
+        cls.pixel_refs = CollectionProperty(
+            name='pixel_refs',
+            type=PixelReference,
         )
         cls.original_size = IntVectorProperty(
             name='OriginalSize',
@@ -124,11 +137,39 @@ class PixelImage(bpy.types.PropertyGroup):
             pixel = pixel_ref.get_pixel(context, data)
             pixel.update_color(image=image)
 
+class PixelImageReference(bpy.types.PropertyGroup):
+    name = StringProperty()
+    @classmethod
+    def on_frame_change(cls, scene):
+        frame = scene.frame_current
+        for img_ref in scene.pixel_generator_props.pixel_image_refs.values():
+            pixel_image = img_ref.get_pixel_image()
+            img = pixel_image.id_data
+            fr_dur = img.frame_duration
+            if not fr_dur:
+                continue
+            if frame < img.frame_start:
+                continue
+            if frame > fr_dur - img.frame_start:
+                continue
+            pixel_image.update_pixels(data=scene)
+    def get_pixel_image(self, context=None, data=None):
+        if data is None:
+            if context is not None:
+                data = context.data
+            else:
+                data = bpy.data
+        image = data.images[self.name]
+        return image.pixel_image
 
 class PixelGeneratorProps(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
-        bpy.types.WindowManager.pixel_generator_props = PointerProperty(type=cls)
+        bpy.types.Scene.pixel_generator_props = PointerProperty(type=cls)
+        cls.pixel_image_refs = CollectionProperty(
+            type=PixelImageReference,
+            name='pixel_image_refs',
+        )
         cls.scale_factor = FloatProperty(
             default=64.,
             name='Scale Factor',
@@ -154,7 +195,7 @@ class PixelGenerator(bpy.types.Operator):
             bpy.ops.object.delete(obj)
         pixel_image.pixels.clear()
     def generate_pixels(self, context, image):
-        props = context.window_manager.pixel_generator_props
+        props = context.scene.pixel_generator_props
         if props.use_active_object:
             obj = context.active_object
         else:
@@ -181,14 +222,19 @@ class PixelGenerator(bpy.types.Operator):
                 material = obj.pixel_data.make_material(context)
                 #obj.data.materials.append(material)
                 obj.pixel_data.update_color(context, image)
-                #image.pixel_image.pixels.add(obj.pixel_data)
+                pixel_ref = image.pixel_image.pixel_refs.add()
+                pixel_ref.name = obj.name
     def execute(self, context):
-        props = context.window_manager.pixel_generator_props
+        props = context.scene.pixel_generator_props
         image = context.area.spaces.active.image
         pixel_image = image.pixel_image
-        if len(image.pixel_image.pixels):
-            self.remove_old_pixels(pixel_image)
-            image.reload()
+        if image.name in props.pixel_image_refs:
+            self.remove_old_data(context.active_object, props.pixel_image_refs[image.name])
+        img_ref = props.pixel_image_refs.add()
+        img_ref.name = image.name
+        #if len(image.pixel_image.pixels):
+        #    self.remove_old_pixels(pixel_image)
+        #    image.reload()
         pixel_image.scale_factor = props.scale_factor
         pixel_image.original_size = image.size
         new_size = [i // props.scale_factor for i in image.size]
@@ -202,7 +248,7 @@ class PixelGeneratorUi(bpy.types.Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'TOOLS'
     def draw(self, context):
-        props = context.window_manager.pixel_generator_props
+        props = context.scene.pixel_generator_props
         layout = self.layout
         row = layout.row()
         row.prop(props, 'scale_factor')
@@ -232,6 +278,8 @@ def generate_cubes(image_name, scale_factor=16):
 #cubify('sprite.png')
 
 def register():
+    bpy.utils.register_class(PixelReference)
+    bpy.utils.register_class(PixelImageReference)
     bpy.utils.register_class(Pixel)
     bpy.utils.register_class(PixelImage)
     bpy.utils.register_class(PixelGeneratorProps)
@@ -244,6 +292,8 @@ def unregister():
     bpy.utils.unregister_class(PixelGeneratorProps)
     bpy.utils.unregister_class(PixelImage)
     bpy.utils.unregister_class(Pixel)
+    bpy.utils.unregister_class(PixelImageReference)
+    bpy.utils.unregister_class(PixelReference)
 
 if __name__ == '__main__':
     register()
