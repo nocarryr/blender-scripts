@@ -70,6 +70,7 @@ class Pixel(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Object.pixel_data = PointerProperty(type=cls)
+        cls.is_first_obj = BoolProperty(default=False)
         cls.pixel_image_name = StringProperty()
         cls.material_name = StringProperty()
         cls.position = FloatVectorProperty(size=2)
@@ -185,34 +186,72 @@ class PixelGeneratorProps(bpy.types.PropertyGroup):
             name='Use Active Object',
         )
 
+def delete_object(obj):
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select = True
+    bpy.ops.object.delete()
+
+def set_object_parent(scene, obj, parent):
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select = True
+    parent.select = True
+    scene.objects.active = parent
+    bpy.ops.object.parent_set()
+
 class PixelGenerator(bpy.types.Operator):
     bl_idname = 'image.pixel_generator'
     bl_label = 'Pixel Generator'
-    def remove_old_data(self, base_obj, pixel_image_ref):
+    def remove_old_data(self, pixel_image_ref):
         pixel_image = pixel_image_ref.get_pixel_image()
         scene = pixel_image_ref.id_data
+        first_obj = None
+        empty_obj = None
         for pixel_ref in pixel_image.pixel_refs.values():
             try:
                 obj = pixel_ref.get_object(data=scene)
             except KeyError:
                 obj = None
-            if obj and obj is not base_obj:
-                bpy.ops.object.select_all(action='DESELECT')
-                obj.select = True
-                bpy.ops.object.delete()
-            bpy.ops.object.delete()
+            if obj is not None:
+                if empty_obj is None and obj.parent is not None:
+                    empty_obj = obj.parent
+                else:
+                    obj.parent = None
+                if obj.pixel_data.is_first_obj:
+                    first_obj = obj
+                    continue
+                delete_object(obj)
+        if empty_obj is not None:
+            delete_object(empty_obj)
         pixel_image.pixel_refs.clear()
         i = scene.pixel_generator_props.pixel_image_refs.find(pixel_image_ref.name)
         scene.pixel_generator_props.pixel_image_refs.remove(i)
-    def generate_pixels(self, context, image):
+        return first_obj
+    def generate_pixels(self, context, image, first_obj):
         props = context.scene.pixel_generator_props
+        active_obj = context.active_object
         if props.use_active_object:
-            obj = context.active_object
-        else:
+            if active_obj is not None:
+                obj = active_obj
+                if first_obj is not None and first_obj != obj:
+                    delete_object(first_obj)
+            elif first_obj is not None:
+                obj = first_obj
+                obj.select = True
+            else:
+                obj = None
+        if obj is None:
             bpy.ops.mesh.primitive_cube_add(location=(0., 0., 0.))
             obj = context.active_object
-        obj.select = True
+        objdata = obj.data
         image_size = image.size
+
+        bpy.ops.object.add()
+        empty_obj = context.active_object
+        empty_obj.name = '-'.join(['Empty', image.name])
+        empty_obj.location = [image_size[0]/2., image_size[1]/2., -10.]
+        empty_obj.select = False
+
+        obj.select = True
         #pixel_scale = [1, 1]#self.pixel_image_scale
         #pixel_size = [i // px_scale for i, px_scale in zip(image_size, pixel_scale)]
         is_first_obj = True
@@ -221,13 +260,15 @@ class PixelGenerator(bpy.types.Operator):
                 if is_first_obj:
                     is_first_obj = False
                 else:
-                    objdata = obj.data.copy()
-                    bpy.ops.object.duplicate()
-                    obj = bpy.context.active_object
-                    obj.data = objdata
+                    #bpy.ops.object.select_all(action='DESELECT')
+                    obj = obj.copy()
+                    obj.data = objdata.copy()
+                    context.scene.objects.link(obj)
                 #image_pos = [px * im for px, im in zip(px_pos, image_size)]
                 obj.scale = props.pixel_object_scale
                 obj.location = [x, y, 0]
+                set_object_parent(context.scene, obj, empty_obj)
+                obj.pixel_data.is_first_obj = is_first_obj
                 obj.pixel_data.position = [x, y]
                 obj.pixel_data.pixel_image_name = image.name
                 material = obj.pixel_data.make_material(context)
@@ -235,12 +276,16 @@ class PixelGenerator(bpy.types.Operator):
                 obj.pixel_data.update_color(context, image)
                 pixel_ref = image.pixel_image.pixel_refs.add()
                 pixel_ref.name = obj.name
+
     def execute(self, context):
         props = context.scene.pixel_generator_props
         image = context.area.spaces.active.image
         pixel_image = image.pixel_image
         if image.name in props.pixel_image_refs:
-            self.remove_old_data(context.active_object, props.pixel_image_refs[image.name])
+            first_obj = self.remove_old_data(props.pixel_image_refs[image.name])
+        else:
+            first_obj = None
+        image.reload()
         img_ref = props.pixel_image_refs.add()
         img_ref.name = image.name
         #if len(image.pixel_image.pixels):
@@ -250,7 +295,7 @@ class PixelGenerator(bpy.types.Operator):
         pixel_image.original_size = image.size
         new_size = [i // props.scale_factor for i in image.size]
         image.scale(*new_size)
-        self.generate_pixels(context, image)
+        self.generate_pixels(context, image, first_obj)
         return {'FINISHED'}
 
 class PixelGeneratorUi(bpy.types.Panel):
