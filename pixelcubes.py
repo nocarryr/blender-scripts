@@ -8,6 +8,7 @@ import bpy
 from bpy.app.handlers import persistent
 from bpy.props import (
     BoolProperty,
+    IntProperty,
     StringProperty,
     FloatProperty,
     CollectionProperty,
@@ -74,6 +75,7 @@ class Pixel(bpy.types.PropertyGroup):
         cls.pixel_image_name = StringProperty()
         cls.material_name = StringProperty()
         cls.position = FloatVectorProperty(size=2)
+        cls.pixel_start_index = IntProperty()
     def make_material(self, context):
         data = bpy.data
         self.material_name = '%s-%dx%d' % (self.pixel_image_name, self.x, self.y)
@@ -98,7 +100,7 @@ class Pixel(bpy.types.PropertyGroup):
             else:
                 data = bpy.data
                 image = data.images[self.pixel_image_name]
-        i = int(self.x * self.y * 4)
+        i = self.pixel_start_index
         self.color = image.pixels[i:i+4]
 
 class PixelReference(bpy.types.PropertyGroup):
@@ -271,6 +273,8 @@ class PixelGenerator(bpy.types.Operator):
                 obj.pixel_data.is_first_obj = is_first_obj
                 obj.pixel_data.position = [x, y]
                 obj.pixel_data.pixel_image_name = image.name
+                block_number = (y * image_size[0]) + x
+                obj.pixel_data.pixel_start_index = int(block_number * 4)
                 material = obj.pixel_data.make_material(context)
                 #obj.data.materials.append(material)
                 obj.pixel_data.update_color(context, image)
