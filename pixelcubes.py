@@ -14,8 +14,10 @@ from bpy.props import (
     CollectionProperty,
     IntVectorProperty,
     FloatVectorProperty,
+    EnumProperty,
     PointerProperty
 )
+import mathutils
 from random import uniform
 
 
@@ -76,6 +78,8 @@ class Pixel(bpy.types.PropertyGroup):
         cls.material_name = StringProperty()
         cls.position = FloatVectorProperty(size=2)
         cls.pixel_start_index = IntProperty()
+        cls.z_scale_color_modifier = StringProperty()
+        cls.z_scale_modifier_amount = FloatProperty()
     def make_material(self, context):
         data = bpy.data
         self.material_name = '%s-%dx%d' % (self.pixel_image_name, self.x, self.y)
@@ -102,6 +106,18 @@ class Pixel(bpy.types.PropertyGroup):
                 image = data.images[self.pixel_image_name]
         i = self.pixel_start_index
         self.color = image.pixels[i:i+4]
+        z_mod_amt = self.z_scale_modifier_amount
+        if z_mod_amt == 0:
+            return
+        z_mod_attr = self.z_scale_color_modifier
+        if z_mod_attr == 'a':
+            val = self.color[3]
+        else:
+            color = mathutils.Color(self.color[:3])
+            val = getattr(color, z_mod_attr)
+        z = val * z_mod_amt
+        self.id_data.scale[2] = z
+
 
 class PixelReference(bpy.types.PropertyGroup):
     name = StringProperty()
@@ -187,6 +203,19 @@ class PixelGeneratorProps(bpy.types.PropertyGroup):
             default=True,
             name='Use Active Object',
         )
+        cls.z_scale_color_modifier = EnumProperty(
+            items=[
+                ('r', 'red', 'Red'),
+                ('g', 'green', 'Green'),
+                ('b', 'blue', 'Blue'),
+                ('h', 'hue', 'Hue'),
+                ('s', 'sat', 'Saturation'),
+                ('v', 'value', 'Value'),
+                ('a', 'alpha', 'Alpha'),
+            ],
+            default='v',
+        )
+        cls.z_scale_modifier_amount = FloatProperty(default=0.)
 
 def delete_object(obj):
     bpy.ops.object.select_all(action='DESELECT')
@@ -253,6 +282,8 @@ class PixelGenerator(bpy.types.Operator):
         empty_obj.location = [image_size[0]/2., image_size[1]/2., -10.]
         empty_obj.select = False
 
+        z_mod_attr = props.z_scale_color_modifier
+        z_mod_amt = props.z_scale_modifier_amount
         obj.select = True
         #pixel_scale = [1, 1]#self.pixel_image_scale
         #pixel_size = [i // px_scale for i, px_scale in zip(image_size, pixel_scale)]
@@ -273,6 +304,8 @@ class PixelGenerator(bpy.types.Operator):
                 obj.pixel_data.is_first_obj = is_first_obj
                 obj.pixel_data.position = [x, y]
                 obj.pixel_data.pixel_image_name = image.name
+                obj.pixel_data.z_scale_color_modifier = z_mod_attr
+                obj.pixel_data.z_scale_modifier_amount = z_mod_amt
                 block_number = (y * image_size[0]) + x
                 obj.pixel_data.pixel_start_index = int(block_number * 4)
                 material = obj.pixel_data.make_material(context)
@@ -316,6 +349,10 @@ class PixelGeneratorUi(bpy.types.Panel):
         row.prop(props, 'pixel_object_scale')
         row = layout.row()
         row.prop(props, 'use_active_object')
+        row = layout.row()
+        row.prop(props, 'z_scale_color_modifier')
+        row = layout.row()
+        row.prop(props, 'z_scale_modifier_amount')
         row = layout.row()
         row.operator('image.pixel_generator')
 
