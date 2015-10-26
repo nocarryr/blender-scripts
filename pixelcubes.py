@@ -80,6 +80,39 @@ class Pixel(bpy.types.PropertyGroup):
         cls.pixel_start_index = IntProperty()
         cls.z_scale_color_modifier = StringProperty()
         cls.z_scale_modifier_amount = FloatProperty()
+    @classmethod
+    def on_frame_change(cls, scene):
+        frame = scene.frame_current
+        imgs_anim = {}
+        imgs_static = {}
+        frame = scene.frame_current
+        for obj in scene.objects.values():
+            img_name = obj.pixel_data.pixel_image_name
+            if img_name is None:
+                continue
+            if img_name in imgs_static:
+                continue
+            img = imgs_anim.get(img_name)
+            if img is None:
+                img = bpy.data.images.get(img_name)
+                if img is None:
+                    continue
+                if not img.frame_duration:
+                    imgs_static[img_name] = img
+                    continue
+                if frame < img.frame_start:
+                    imgs_static[img_name] = img
+                    continue
+                if frame > img.frame_duration - img.frame_start:
+                    imgs_static[img_name] = img
+                    continue
+                imgs_anim[img_name] = img
+                img.update_tag()
+                scene.update()
+                img.pixel_image.check_scale()
+            obj.pixel_data.update_color(image=img)
+            obj.update_tag()
+        scene.update()
     def make_material(self, context):
         data = bpy.data
         self.material_name = '%s-%dx%d' % (self.pixel_image_name, self.x, self.y)
@@ -149,30 +182,13 @@ class PixelImage(bpy.types.PropertyGroup):
             name='Pixel Scale',
             size=2,
         )
-    def update_pixels(self, context=None, data=None):
+    def check_scale(self):
         image = self.id_data
         if list(image.size) == list(self.original_size):
             image.scale(*[i // self.scale_factor for i in image.size])
-        for pixel_ref in self.pixel_refs.values():
-            pixel = pixel_ref.get_pixel(context, data)
-            pixel.update_color(image=image)
 
 class PixelImageReference(bpy.types.PropertyGroup):
     name = StringProperty()
-    @classmethod
-    def on_frame_change(cls, scene):
-        frame = scene.frame_current
-        for img_ref in scene.pixel_generator_props.pixel_image_refs.values():
-            pixel_image = img_ref.get_pixel_image()
-            img = pixel_image.id_data
-            fr_dur = img.frame_duration
-            if not fr_dur:
-                continue
-            if frame < img.frame_start:
-                continue
-            if frame > fr_dur - img.frame_start:
-                continue
-            pixel_image.update_pixels(data=scene)
     def get_pixel_image(self, context=None, data=None):
         if data is None:
             if context is not None:
@@ -376,7 +392,7 @@ def generate_cubes(image_name, scale_factor=16):
 
 #@persistent
 def pixel_cubes_on_frame_change(scene):
-    PixelImageReference.on_frame_change(scene)
+    Pixel.on_frame_change(scene)
 
 def remove_old_handler():
     for f in bpy.app.handlers.frame_change_pre[:]:
