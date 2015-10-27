@@ -83,8 +83,10 @@ class Pixel(bpy.types.PropertyGroup):
     @classmethod
     def on_frame_change(cls, scene):
         frame = scene.frame_current
+        print(frame)
         imgs_anim = {}
         imgs_static = {}
+        to_update = []
         frame = scene.frame_current
         for obj in scene.objects.values():
             img_name = obj.pixel_data.pixel_image_name
@@ -95,25 +97,39 @@ class Pixel(bpy.types.PropertyGroup):
             img = imgs_anim.get(img_name)
             if img is None:
                 img = bpy.data.images.get(img_name)
+                material = obj.active_material
+                if material is None:
+                    continue
+                i = material.texture_slots.find(img_name)
+                tex = obj.active_material.texture_slots[i].texture
+                img = tex.image
                 if img is None:
                     continue
-                if not img.frame_duration:
+                if not tex.image_user.frame_duration:
                     imgs_static[img_name] = img
                     continue
-                if frame < img.frame_start:
+                if frame < tex.image_user.frame_start:
                     imgs_static[img_name] = img
                     continue
-                if frame > img.frame_duration - img.frame_start:
+                if frame > tex.image_user.frame_duration - tex.image_user.frame_start:
                     imgs_static[img_name] = img
                     continue
                 imgs_anim[img_name] = img
+                tex.image_user.frame_current = frame
                 img.update_tag()
+                tex.update_tag()
                 scene.update()
                 img.pixel_image.check_scale()
-            obj.pixel_data.update_color(image=img)
-            obj.update_tag()
+            to_update.append(obj)
         scene.update()
-    def make_material(self, context):
+        for obj in to_update:
+            obj.pixel_data.update_color(image=img)
+            obj.data.update_tag()
+            obj.active_material.update_tag()
+            obj.update_tag()
+        print(imgs_anim)
+        scene.update()
+    def make_material(self, context, image):
         data = bpy.data
         self.material_name = '%s-%dx%d' % (self.pixel_image_name, self.x, self.y)
         if self.material_name in data.materials:
@@ -125,6 +141,20 @@ class Pixel(bpy.types.PropertyGroup):
             bsdf = material.node_tree.nodes['Diffuse BSDF']
             bsdf.inputs[0].default_value = self.color
         else:
+            tex = data.textures.get(image.name)
+            if tex is None:
+                tex = data.textures.new(image.name, type='IMAGE')
+                tex.image = image
+                tex.image_user.frame_start = image.frame_start
+                tex.image_user.frame_duration = image.frame_duration
+                tex.image_user.use_auto_refresh = True
+            slot_index = material.texture_slots.find(tex.name)
+            if slot_index == -1:
+                slot = material.texture_slots.add()
+                slot.texture = tex
+            else:
+                slot = material.texture_slots[slot_index]
+            slot.use_map_color_diffuse = False
             material.diffuse_color = self.color[:3]
             material.alpha = self.color[3]
             material.use_transparency = True
@@ -135,8 +165,9 @@ class Pixel(bpy.types.PropertyGroup):
             if context is not None:
                 data = context.blend_data
             else:
-                data = bpy.data
-                image = data.images[self.pixel_image_name]
+                image = self.id_data.active_material.active_texture.image
+                #data = bpy.data
+                #image = data.images[self.pixel_image_name]
         i = self.pixel_start_index
         self.color = image.pixels[i:i+4]
         z_mod_amt = self.z_scale_modifier_amount
@@ -324,7 +355,7 @@ class PixelGenerator(bpy.types.Operator):
                 obj.pixel_data.z_scale_modifier_amount = z_mod_amt
                 block_number = (y * image_size[0]) + x
                 obj.pixel_data.pixel_start_index = int(block_number * 4)
-                material = obj.pixel_data.make_material(context)
+                material = obj.pixel_data.make_material(context, image)
                 #obj.data.materials.append(material)
                 obj.pixel_data.update_color(context, image)
                 pixel_ref = image.pixel_image.pixel_refs.add()
@@ -395,13 +426,13 @@ def pixel_cubes_on_frame_change(scene):
     Pixel.on_frame_change(scene)
 
 def remove_old_handler():
-    for f in bpy.app.handlers.frame_change_pre[:]:
+    for f in bpy.app.handlers.frame_change_post[:]:
         if f.__name__ == pixel_cubes_on_frame_change.__name__:
-            bpy.app.handlers.frame_change_pre.remove(f)
+            bpy.app.handlers.frame_change_post.remove(f)
 
 def add_handler():
     remove_old_handler()
-    bpy.app.handlers.frame_change_pre.append(pixel_cubes_on_frame_change)
+    bpy.app.handlers.frame_change_post.append(pixel_cubes_on_frame_change)
 
 def register():
     bpy.utils.register_class(PixelReference)
