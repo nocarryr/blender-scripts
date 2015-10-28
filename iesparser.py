@@ -1,5 +1,7 @@
 import os
 import collections
+import json
+import numbers
 
 DELIMS = [',', ';', ' ']
 def split_line(line):
@@ -7,12 +9,57 @@ def split_line(line):
         line = line.replace(delim,'\t')
     return line.strip('\t').split('\t')
 
+class IESJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, (IESData, IESBase)):
+            d = {'_IES_CLS_':o.__class__.__name__}
+            if isinstance(o, IESData):
+                attrs = ['filename', 'keywords', 'fields', 'candela_values']
+                d.update({k: getattr(o, k) for k in attrs})
+            else:
+                d.update({'name':o.name, 'value':o.value})
+            if isinstance(o, IESCandelaValue):
+                d.update({k: getattr(o, k) for k in ['vertical', 'horizontal']})
+            return d
+        elif isinstance(o, dict):
+            numkeys = [k for k in o.keys() if isinstance(k, numbers.Number)]
+            for k in numkeys:
+                v = o.pop(k)
+                o[str(k)] = v
+        return super(IESJSONEncoder, self).default(o)
+
+def ies_json_object_hook(d):
+    if '_IES_CLS_' in d.keys():
+        if d['_IES_CLS_'] == 'IESData':
+            cls = IESData
+        else:
+            cls = IESBase.find_subclass(d['_IES_CLS_'])
+        #for key, val in d.items():
+        #    if isinstance(val, dict):
+        #        d[key] = ies_json_object_hook(val)
+        return cls(**d)
+    return d
+
+class IESJSONDecoder(json.JSONDecoder):
+    def __init__(self, **kwargs):
+        kwargs.setdefault('object_hook', ies_json_object_hook)
+        super(IESJSONDecoder, self).__init__(**kwargs)
+
 class IESBase(object):
     def __init__(self, **kwargs):
         kwargs = self.parse(**kwargs)
         self.parent = kwargs.get('parent')
         self.name = kwargs.get('name')
         self.value = kwargs.get('value')
+    @classmethod
+    def find_subclass(cls, cls_name):
+        if cls_name == cls.__name__:
+            return cls
+        for _cls in cls.__subclasses__():
+            r = _cls.find_subclass(cls_name)
+            if r is not None:
+                return r
+        return None
     def parse(self, **kwargs):
         return kwargs
     def __repr__(self):
