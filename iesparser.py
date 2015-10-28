@@ -10,6 +10,7 @@ def split_line(line):
 class IESBase(object):
     def __init__(self, **kwargs):
         kwargs = self.parse(**kwargs)
+        self.parent = kwargs.get('parent')
         self.name = kwargs.get('name')
         self.value = kwargs.get('value')
     def parse(self, **kwargs):
@@ -69,7 +70,115 @@ class IESCandelaValue(IESBase):
             obj = cls(vertical=v_angle, horizontal=h_angle, value=float(val))
             d[obj.name] = obj
         return v_angles, d
+    def get_computed_value(self, candela_multiplier=None, ballast_factor=None):
+        p = self.parent
+        if candela_multiplier is None:
+            candela_multiplier = p.candela_multiplier.value
+        if ballast_factor is None:
+            ballast_factor = p.ballast_factor.value
+        return self.value * candela_multiplier * ballast_factor
 
+class IESData(object):
+    def __init__(self, **kwargs):
+        self._keywords = {}
+        self._fields = {}
+        self.filename = kwargs.get('filename')
+        self.keywords = kwargs.get('keywords', {})
+        self.fields = kwargs.get('fields', {})
+        self.candela_values = {}
+        candela_vals = kwargs.get('candela_values', {})
+        if isinstance(candela_vals, dict):
+            candela_vals = candela_vals.values()
+        for c in candela_vals:
+            if isinstance(c, dict) and 'name' not in c:
+                for _c in c.values():
+                    self.add_candela_value(_c)
+            else:
+                self.add_candela_value(c)
+    @classmethod
+    def from_file(cls, filename):
+        data = do_parse(filename)
+        data['filename'] = filename
+        return cls(**data)
+    @property
+    def keywords(self):
+        return self._keywords
+    @keywords.setter
+    def keywords(self, value):
+        if isinstance(value, dict):
+            for key, val in value.items():
+                if isinstance(val, IESKeyword):
+                    self.add_keyword(val)
+                else:
+                    self.add_keyword(name=key, value=val)
+        elif isinstance(value, IESKeyword):
+            value = [value]
+        if isinstance(value, collections.Sequence):
+            for obj in value:
+                self.add_keyword(obj)
+    @property
+    def fields(self):
+        return self._fields
+    @fields.setter
+    def fields(self, value):
+        if isinstance(value, dict):
+            for key, val in value.items():
+                if isinstance(val, IESField):
+                    self.add_field(val)
+                else:
+                    self.add_field(name=key, value=val)
+        elif isinstance(value, IESField):
+            value = [value]
+        if isinstance(value, collections.Sequence):
+            for obj in value:
+                self.add_field(obj)
+    def _add_ies_obj(self, cls, obj=None, dict_attr=None, **kwargs):
+        if obj is None:
+            obj = cls(**kwargs)
+        elif isinstance(obj, dict):
+            obj = cls(**obj)
+        if dict_attr is not None:
+            d = getattr(self, dict_attr)
+            if obj.name in d:
+                d[obj.name].value = obj.value
+                obj = d[obj.name]
+            else:
+                d[obj.name] = obj
+        obj.parent = self
+        return obj
+    def add_keyword(self, obj=None, **kwargs):
+        return self._add_ies_obj(
+            cls=IESKeyword, obj=obj, dict_attr='keywords', **kwargs)
+    def add_field(self, obj=None, **kwargs):
+        return self._add_ies_obj(
+            cls=IESField, obj=obj, dict_attr='fields', **kwargs)
+    def add_candela_value(self, obj=None, **kwargs):
+        obj = self._add_ies_obj(cls=IESCandelaValue, obj=obj, **kwargs)
+        if obj.vertical not in self.candela_values:
+            self.candela_values[obj.vertical] = {}
+        self.candela_values[obj.vertical][obj.horizontal] = obj
+        return obj
+    def __getattr__(self, attr):
+        if hasattr(self, '_fields') and attr in self._fields:
+            return self._fields[attr]
+        if hasattr(self, '_keywords'):
+            _attr = attr
+            if _attr not in keywords:
+                _attr = _attr.upper()
+            if _attr in self._keywords:
+                return self._keywords[_attr]
+        raise AttributeError('%r object has no attribute %r' %
+                             (self.__class__, attr))
+    def iter_candela(self):
+        cvals = self.candela_values
+        for v in sorted(cvals.keys()):
+            d = cvals[v]
+            for h in sorted(d.keys()):
+                cobj = d[h]
+                yield v, h, cobj
+    def iter_candela_computed(self):
+        for v, h, cobj in self.iter_candela():
+            yield v, h, cobj.get_computed_value()
 
 def do_parse(filename):
     if '~' in filename:
@@ -129,6 +238,6 @@ def do_parse(filename):
         keywords=keywords,
         fields=fields,
         angles=angles,
-        candela_vals=candela_vals,
+        candela_values=candela_vals,
     )
     return data
